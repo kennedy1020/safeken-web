@@ -13,6 +13,7 @@ import {
   Download,
 } from 'lucide-react';
 import { exportToMarkdown, exportToSarif, downloadFile } from '@/lib/exportReports';
+import CiSnippetModal from '@/components/CiSnippetModal';
 
 const SAMPLES = {
   npm: JSON.stringify(
@@ -84,6 +85,9 @@ export default function Playground() {
   const [auditingCode, setAuditingCode] = useState(false);
   const [codeResult, setCodeResult] = useState<CodeAuditResult | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  // CI/CD Modal State
+  const [isCiModalOpen, setIsCiModalOpen] = useState(false);
 
   const handleRunManifestProbe = async () => {
     setProbing(true);
@@ -278,6 +282,12 @@ export default function Playground() {
                     >
                       <Download className="w-3.5 h-3.5" /> SARIF (.sarif)
                     </button>
+                    <button
+                      onClick={() => setIsCiModalOpen(true)}
+                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 rounded border border-emerald-500/30 transition"
+                    >
+                      <Terminal className="w-3.5 h-3.5 text-emerald-400" /> Add to GitHub CI
+                    </button>
                   </div>
                 </div>
 
@@ -395,6 +405,12 @@ export default function Playground() {
                     >
                       <Download className="w-3.5 h-3.5" /> SARIF (.sarif)
                     </button>
+                    <button
+                      onClick={() => setIsCiModalOpen(true)}
+                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 rounded border border-emerald-500/30 transition"
+                    >
+                      <Terminal className="w-3.5 h-3.5 text-emerald-400" /> Add to GitHub CI
+                    </button>
                   </div>
                 </div>
 
@@ -459,6 +475,12 @@ export default function Playground() {
           </div>
         )}
       </div>
+
+      <CiSnippetModal
+        isOpen={isCiModalOpen}
+        onClose={() => setIsCiModalOpen(false)}
+        defaultEcosystem={ecosystem}
+      />
     </div>
   );
 }
