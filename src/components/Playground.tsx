@@ -3,12 +3,36 @@
 import React, { useState } from 'react';
 import { ShieldAlert, CheckCircle2, AlertTriangle, ArrowRight, Terminal } from 'lucide-react';
 
+const SAMPLES = {
+  npm: JSON.stringify(
+    {
+      name: 'ai-nextjs-app',
+      version: '0.1.0',
+      dependencies: {
+        next: '^14.2.0',
+        react: '^18.3.0',
+        'supabase-realtime-quickconnect-ai': '^1.0.0', // Hallucinated
+        'paystack-inline-v3-helper': '^0.0.1',        // Hallucinated
+        '@types/node': '^20.0.0',
+      },
+    },
+    null,
+    2
+  ),
+  pypi: `# Python dependencies
+fastapi>=0.110.0
+uvicorn[standard]==0.29.0
+langchain-groq-security-agent==0.1.0  # Hallucinated
+supabase-py-admin-bypass==0.0.4       # Hallucinated
+pydantic>=2.0.0
+requests>=2.31.0`,
+};
+
 const CODE_PRESETS = {
   paystack: {
     title: 'Paystack Unverified Webhook',
     code: `export async function POST(req: Request) {
   const event = await req.json();
-  // Processing event directly without HMAC SHA-512 check!
   if (event.event === 'charge.success') {
     await fulfillOrder(event.data.reference);
   }
@@ -33,7 +57,6 @@ export async function POST(req: Request) {
     code: `'use client';
 import { createClient } from '@supabase/supabase-js';
 
-// Leaking service_role key to client bundle!
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -42,7 +65,6 @@ const supabase = createClient(
     remediation: `'use client';
 import { createBrowserClient } from '@supabase/ssr';
 
-// Safe: anon key protected by Row Level Security (RLS)
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -54,33 +76,15 @@ const supabase = createBrowserClient(
   apiKey: process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY,
 };`,
     flaw: 'nextjs-public-secret-bleed: Private backend secret exposed via NEXT_PUBLIC_ variable prefix.',
-    remediation: `// Access backend secret strictly in server environments:
-export const config = {
+    remediation: `export const config = {
   apiKey: process.env.STRIPE_SECRET_KEY,
 };`,
   },
 };
 
-const SAMPLE_PACKAGE_JSON = JSON.stringify(
-  {
-    name: 'ai-generated-app',
-    version: '0.1.0',
-    dependencies: {
-      next: '^14.2.0',
-      react: '^18.3.0',
-      'react-dom': '^18.3.0',
-      'supabase-realtime-quickconnect-ai': '^1.0.0', // Intentional hallucination
-      'paystack-inline-v3-helper': '^0.0.1',        // Intentional hallucination
-      '@types/node': '^20.0.0',
-    },
-  },
-  null,
-  2
-);
-
 interface FlaggedPackage {
   name: string;
-  version: string;
+  ecosystem?: string;
   status: string;
   issue: string;
 }
@@ -89,15 +93,22 @@ interface ProbeResult {
   error?: string;
   flagged?: FlaggedPackage[];
   scanned?: number;
+  ecosystem?: string;
 }
 
 export default function Playground() {
   const [activeTab, setActiveTab] = useState<'deps' | 'code'>('deps');
-  const [pkgInput, setPkgInput] = useState(SAMPLE_PACKAGE_JSON);
+  const [ecosystem, setEcosystem] = useState<'npm' | 'pypi'>('npm');
+  const [manifestInput, setManifestInput] = useState(SAMPLES.npm);
   const [probing, setProbing] = useState(false);
   const [probeResult, setProbeResult] = useState<ProbeResult | null>(null);
-
   const [selectedPreset, setSelectedPreset] = useState<keyof typeof CODE_PRESETS>('paystack');
+
+  const handleEcosystemChange = (newEco: 'npm' | 'pypi') => {
+    setEcosystem(newEco);
+    setManifestInput(SAMPLES[newEco]);
+    setProbeResult(null);
+  };
 
   const handleRunProbe = async () => {
     setProbing(true);
@@ -106,7 +117,7 @@ export default function Playground() {
       const res = await fetch('/api/probe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packageJsonText: pkgInput }),
+        body: JSON.stringify({ content: manifestInput, ecosystem }),
       });
       const data = await res.json();
       setProbeResult(data);
@@ -119,7 +130,6 @@ export default function Playground() {
 
   return (
     <div className="w-full max-w-5xl mx-auto rounded-xl border border-zinc-800 bg-zinc-950/80 backdrop-blur overflow-hidden shadow-2xl">
-      {/* Tab Switcher */}
       <div className="flex border-b border-zinc-800 bg-zinc-900/50">
         <button
           onClick={() => setActiveTab('deps')}
@@ -130,7 +140,7 @@ export default function Playground() {
           }`}
         >
           <ShieldAlert className="w-4 h-4 text-emerald-400" />
-          Slopsquatting Detector (npm Registry Probe)
+          Slopsquatting Detector (npm / PyPI)
         </button>
         <button
           onClick={() => setActiveTab('code')}
@@ -148,23 +158,43 @@ export default function Playground() {
       <div className="p-6">
         {activeTab === 'deps' ? (
           <div>
-            <div className="flex justify-between items-center mb-3">
-              <label className="text-sm text-zinc-300 font-medium">
-                Paste your <code className="text-emerald-400">package.json</code>:
-              </label>
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleEcosystemChange('npm')}
+                  className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                    ecosystem === 'npm'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
+                  }`}
+                >
+                  npm (package.json)
+                </button>
+                <button
+                  onClick={() => handleEcosystemChange('pypi')}
+                  className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                    ecosystem === 'pypi'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
+                  }`}
+                >
+                  PyPI (requirements.txt)
+                </button>
+              </div>
+
               <button
                 onClick={handleRunProbe}
                 disabled={probing}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition flex items-center gap-2"
               >
-                {probing ? 'Probing Registry...' : 'Audit Dependencies'}
+                {probing ? 'Probing Registry...' : `Audit ${ecosystem.toUpperCase()} Packages`}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
 
             <textarea
-              value={pkgInput}
-              onChange={(e) => setPkgInput(e.target.value)}
+              value={manifestInput}
+              onChange={(e) => setManifestInput(e.target.value)}
               rows={8}
               className="w-full font-mono text-xs bg-zinc-900/90 text-zinc-200 p-4 rounded-lg border border-zinc-800 focus:outline-none focus:border-emerald-500 resize-none"
             />
@@ -190,7 +220,7 @@ export default function Playground() {
                 ) : (
                   <div className="flex items-center gap-2 text-emerald-400 text-sm">
                     <CheckCircle2 className="w-5 h-5" />
-                    <span>All {probeResult.scanned} packages verified on the public registry!</span>
+                    <span>All {probeResult.scanned} packages verified on {ecosystem === 'npm' ? 'npm' : 'PyPI'}!</span>
                   </div>
                 )}
               </div>
@@ -215,7 +245,6 @@ export default function Playground() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Vulnerable Snippet */}
               <div className="rounded-lg border border-red-900/40 bg-zinc-900/80 p-4">
                 <div className="flex items-center gap-2 text-red-400 text-xs font-bold uppercase mb-2">
                   <AlertTriangle className="w-4 h-4" /> Flagged by vibe-shield
@@ -228,7 +257,6 @@ export default function Playground() {
                 </div>
               </div>
 
-              {/* Remediated Snippet */}
               <div className="rounded-lg border border-emerald-900/40 bg-zinc-900/80 p-4">
                 <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase mb-2">
                   <CheckCircle2 className="w-4 h-4" /> Clean Remediation
