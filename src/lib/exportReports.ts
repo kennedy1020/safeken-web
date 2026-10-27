@@ -115,3 +115,67 @@ export function exportToSarif(data: {
 
   return JSON.stringify(sarif, null, 2);
 }
+
+export interface ConfigFindingItem {
+  ruleId?: string;
+  name?: string;
+  status?: string;
+}
+
+// 3. Generate .vibeshieldrc.json Configuration
+export function generateVibeshieldConfig(data: {
+  type?: 'manifest' | 'code';
+  findings?: ConfigFindingItem[];
+  manifestFindings?: ConfigFindingItem[];
+  codeFindings?: ConfigFindingItem[];
+  action?: 'suppress' | 'warn'; // whether to ignore packages or tune rule severities
+}): string {
+  const config: {
+    $schema?: string;
+    excludePaths?: string[];
+    allowPackages?: string[];
+    rules?: Record<string, string>;
+  } = {
+    $schema: 'https://raw.githubusercontent.com/kennedy1020/vibe-shield/main/vibeshieldrc.schema.json',
+    excludePaths: ['node_modules/**', 'dist/**', '.next/**', 'test/fixtures/**'],
+  };
+
+  const allFindings: ConfigFindingItem[] = [
+    ...(data.findings || []),
+    ...(data.manifestFindings || []),
+    ...(data.codeFindings || []),
+  ];
+
+  // Whitelist flagged packages so vibe-shield ignores private/internal 404s
+  const packageNames = allFindings
+    .map((f) => f.name)
+    .filter((name): name is string => Boolean(name));
+
+  if (packageNames.length > 0) {
+    config.allowPackages = Array.from(new Set(packageNames));
+  }
+
+  // Pre-populate rule overrides for all flagged AST flaws
+  const ruleIds = allFindings
+    .map((f) => f.ruleId)
+    .filter((id): id is string => Boolean(id));
+
+  if (ruleIds.length > 0) {
+    const rulesMap: Record<string, string> = {};
+    const severity = data.action === 'suppress' ? 'off' : 'warning';
+
+    for (const ruleId of Array.from(new Set(ruleIds))) {
+      rulesMap[ruleId] = severity;
+    }
+
+    config.rules = rulesMap;
+  } else if (data.type === 'manifest' && packageNames.length > 0) {
+    config.rules = {
+      'slopsquatting-missing-package': 'error',
+    };
+  }
+
+  return JSON.stringify(config, null, 2);
+}
+
+

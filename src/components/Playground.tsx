@@ -11,8 +11,14 @@ import {
   Check,
   RotateCcw,
   Download,
+  FileCode2,
 } from 'lucide-react';
-import { exportToMarkdown, exportToSarif, downloadFile } from '@/lib/exportReports';
+import {
+  exportToMarkdown,
+  exportToSarif,
+  generateVibeshieldConfig,
+  downloadFile,
+} from '@/lib/exportReports';
 import CiSnippetModal from '@/components/CiSnippetModal';
 import TailoredCliSnippet from '@/components/TailoredCliSnippet';
 
@@ -166,6 +172,22 @@ export default function Playground() {
     }
   };
 
+  const handleDownloadConfig = (type: 'manifest' | 'code') => {
+    const manifestFindings = probeResult?.flagged || [];
+    const codeFindings = codeResult?.findings || [];
+
+    if (manifestFindings.length === 0 && codeFindings.length === 0) return;
+
+    const jsonConfig = generateVibeshieldConfig({
+      type,
+      manifestFindings,
+      codeFindings,
+      action: 'warn',
+    });
+
+    downloadFile(jsonConfig, '.vibeshieldrc.json', 'application/json');
+  };
+
   const copyToClipboard = (text: string, index: number) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(index);
@@ -282,6 +304,13 @@ export default function Playground() {
                       className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
                     >
                       <Download className="w-3.5 h-3.5" /> SARIF (.sarif)
+                    </button>
+                    <button
+                      onClick={() => handleDownloadConfig('manifest')}
+                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
+                      title="Download .vibeshieldrc.json with these packages whitelisted"
+                    >
+                      <FileCode2 className="w-3.5 h-3.5 text-cyan-400" /> Config (.json)
                     </button>
                     <button
                       onClick={() => setIsCiModalOpen(true)}
@@ -413,6 +442,13 @@ export default function Playground() {
                       className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
                     >
                       <Download className="w-3.5 h-3.5" /> SARIF (.sarif)
+                    </button>
+                    <button
+                      onClick={() => handleDownloadConfig('code')}
+                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
+                      title="Download .vibeshieldrc.json with these rules tuned to warning"
+                    >
+                      <FileCode2 className="w-3.5 h-3.5 text-cyan-400" /> Config (.json)
                     </button>
                     <button
                       onClick={() => setIsCiModalOpen(true)}
