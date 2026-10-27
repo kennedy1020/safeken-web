@@ -191,6 +191,27 @@ export default function Playground() {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (file.name.endsWith('.json')) {
+        setEcosystem('npm');
+        setManifestInput(content);
+      } else if (file.name.endsWith('.txt')) {
+        setEcosystem('pypi');
+        setManifestInput(content);
+      } else {
+        setManifestInput(content);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="w-full max-w-5xl mx-auto rounded-xl border border-zinc-800 bg-zinc-950/80 backdrop-blur overflow-hidden shadow-2xl">
       {/* Top Navigation Tabs */}
@@ -271,17 +292,26 @@ export default function Playground() {
               </button>
             </div>
 
-            <textarea
-              value={manifestInput}
-              onChange={(e) => setManifestInput(e.target.value)}
-              placeholder={
-                ecosystem === 'npm'
-                  ? 'Paste your package.json dependencies here...'
-                  : 'Paste your requirements.txt dependencies here...'
-              }
-              rows={9}
-              className="w-full font-mono text-xs bg-zinc-900/90 text-zinc-200 p-4 rounded-lg border border-zinc-800 focus:outline-none focus:border-emerald-500 resize-none"
-            />
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleFileDrop}
+              className="relative group"
+            >
+              <textarea
+                value={manifestInput}
+                onChange={(e) => setManifestInput(e.target.value)}
+                placeholder={
+                  ecosystem === 'npm'
+                    ? 'Paste or drop your package.json dependencies here...'
+                    : 'Paste or drop your requirements.txt dependencies here...'
+                }
+                rows={9}
+                className="w-full font-mono text-xs bg-zinc-900/90 text-zinc-200 p-4 rounded-lg border border-zinc-800 focus:outline-none focus:border-emerald-500 resize-none transition group-hover:border-zinc-700"
+              />
+              <div className="absolute right-3 bottom-3 pointer-events-none text-[10px] text-zinc-500 bg-zinc-800/80 px-2 py-0.5 rounded border border-zinc-700">
+                Drag &amp; Drop file to upload
+              </div>
+            </div>
 
             {probeResult && (
               <div className="mt-4 p-4 rounded-lg border border-zinc-800 bg-zinc-900">
