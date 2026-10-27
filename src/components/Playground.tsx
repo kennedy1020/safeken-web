@@ -10,7 +10,9 @@ import {
   Copy,
   Check,
   RotateCcw,
+  Download,
 } from 'lucide-react';
+import { exportToMarkdown, exportToSarif, downloadFile } from '@/lib/exportReports';
 
 const SAMPLES = {
   npm: JSON.stringify(
@@ -119,6 +121,46 @@ export default function Playground() {
     }
   };
 
+  const handleExportManifestReport = (format: 'md' | 'sarif') => {
+    if (!probeResult) return;
+    const findings = probeResult.flagged || [];
+    if (format === 'md') {
+      const md = exportToMarkdown({
+        type: 'manifest',
+        ecosystem,
+        findings,
+        scannedCount: probeResult.scanned,
+      });
+      downloadFile(md, `vibeshield-${ecosystem}-audit.md`, 'text/markdown');
+    } else {
+      const sarif = exportToSarif({
+        type: 'manifest',
+        ecosystem,
+        findings,
+      });
+      downloadFile(sarif, `vibeshield-${ecosystem}-audit.sarif`, 'application/json');
+    }
+  };
+
+  const handleExportCodeReport = (format: 'md' | 'sarif') => {
+    if (!codeResult) return;
+    const findings = codeResult.findings || [];
+    if (format === 'md') {
+      const md = exportToMarkdown({
+        type: 'code',
+        findings,
+        scannedCount: codeResult.scannedLines,
+      });
+      downloadFile(md, 'vibeshield-code-audit.md', 'text/markdown');
+    } else {
+      const sarif = exportToSarif({
+        type: 'code',
+        findings,
+      });
+      downloadFile(sarif, 'vibeshield-code-audit.sarif', 'application/json');
+    }
+  };
+
   const copyToClipboard = (text: string, index: number) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(index);
@@ -219,6 +261,26 @@ export default function Playground() {
 
             {probeResult && (
               <div className="mt-4 p-4 rounded-lg border border-zinc-800 bg-zinc-900">
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-zinc-800">
+                  <span className="text-xs text-zinc-400 font-mono">
+                    Scanned {probeResult.scanned} packages
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleExportManifestReport('md')}
+                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Markdown (.md)
+                    </button>
+                    <button
+                      onClick={() => handleExportManifestReport('sarif')}
+                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
+                    >
+                      <Download className="w-3.5 h-3.5" /> SARIF (.sarif)
+                    </button>
+                  </div>
+                </div>
+
                 {probeResult.error ? (
                   <p className="text-red-400 text-sm">{probeResult.error}</p>
                 ) : probeResult.flagged && probeResult.flagged.length > 0 ? (
@@ -316,6 +378,26 @@ export default function Playground() {
 
             {codeResult && (
               <div className="mt-6 space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800 bg-zinc-900/60">
+                  <span className="text-xs text-zinc-400 font-mono">
+                    Scanned {codeResult.scannedLines} lines of code
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleExportCodeReport('md')}
+                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Markdown (.md)
+                    </button>
+                    <button
+                      onClick={() => handleExportCodeReport('sarif')}
+                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
+                    >
+                      <Download className="w-3.5 h-3.5" /> SARIF (.sarif)
+                    </button>
+                  </div>
+                </div>
+
                 {codeResult.error ? (
                   <div className="p-4 rounded-lg border border-red-900/50 bg-red-950/20 text-red-400 text-sm">
                     {codeResult.error}
