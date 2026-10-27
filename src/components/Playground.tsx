@@ -29,8 +29,8 @@ const SAMPLES = {
       dependencies: {
         next: '^14.2.0',
         react: '^18.3.0',
-        'supabase-realtime-quickconnect-ai': '^1.0.0', // Hallucinated
-        'paystack-inline-v3-helper': '^0.0.1',        // Hallucinated
+        'supabase-realtime-quickconnect-ai': '^1.0.0', // Fake / Hallucinated
+        'paystack-inline-v3-helper': '^0.0.1',        // Fake / Hallucinated
       },
     },
     null,
@@ -38,12 +38,12 @@ const SAMPLES = {
   ),
   pypi: `# Python dependencies
 fastapi>=0.110.0
-langchain-groq-security-agent==0.1.0  # Hallucinated
+langchain-groq-security-agent==0.1.0  # Fake / Hallucinated
 pydantic>=2.0.0`,
   code: `'use client';
 import { createClient } from '@supabase/supabase-js';
 
-// Leaking service_role key to client bundle!
+// Leaking private admin key to every website visitor's browser!
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -53,8 +53,8 @@ const supabase = createClient(
 interface FlaggedPackage {
   name: string;
   ecosystem?: string;
-  status: string;
-  issue: string;
+  status?: string;
+  issue?: string;
 }
 
 interface ProbeResult {
@@ -65,11 +65,11 @@ interface ProbeResult {
 }
 
 interface AuditFinding {
-  ruleId: string;
-  severity: 'CRITICAL' | 'HIGH' | 'WARN';
-  title: string;
-  description: string;
-  suggestedFix: string;
+  ruleId?: string;
+  severity?: 'CRITICAL' | 'HIGH' | 'WARN' | string;
+  title?: string;
+  description?: string;
+  suggestedFix?: string;
 }
 
 interface CodeAuditResult {
@@ -93,7 +93,7 @@ export default function Playground() {
   const [codeResult, setCodeResult] = useState<CodeAuditResult | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  // CI/CD Modal State
+  // CI Modal State
   const [isCiModalOpen, setIsCiModalOpen] = useState(false);
 
   const handleRunManifestProbe = async () => {
@@ -108,7 +108,7 @@ export default function Playground() {
       const data = await res.json();
       setProbeResult(data);
     } catch {
-      setProbeResult({ error: 'Failed to connect to audit server' });
+      setProbeResult({ error: 'Failed to connect to scanner service' });
     } finally {
       setProbing(false);
     }
@@ -126,7 +126,7 @@ export default function Playground() {
       const data = await res.json();
       setCodeResult(data);
     } catch {
-      setCodeResult({ error: 'Failed to analyze code snippet' });
+      setCodeResult({ error: 'Failed to scan code snippet' });
     } finally {
       setAuditingCode(false);
     }
@@ -142,14 +142,14 @@ export default function Playground() {
         findings,
         scannedCount: probeResult.scanned,
       });
-      downloadFile(md, `vibeshield-${ecosystem}-audit.md`, 'text/markdown');
+      downloadFile(md, `vibeshield-${ecosystem}-report.md`, 'text/markdown');
     } else {
       const sarif = exportToSarif({
         type: 'manifest',
         ecosystem,
         findings,
       });
-      downloadFile(sarif, `vibeshield-${ecosystem}-audit.sarif`, 'application/json');
+      downloadFile(sarif, `vibeshield-${ecosystem}-report.sarif`, 'application/json');
     }
   };
 
@@ -162,29 +162,26 @@ export default function Playground() {
         findings,
         scannedCount: codeResult.scannedLines,
       });
-      downloadFile(md, 'vibeshield-code-audit.md', 'text/markdown');
+      downloadFile(md, 'vibeshield-code-report.md', 'text/markdown');
     } else {
       const sarif = exportToSarif({
         type: 'code',
         findings,
       });
-      downloadFile(sarif, 'vibeshield-code-audit.sarif', 'application/json');
+      downloadFile(sarif, 'vibeshield-code-report.sarif', 'application/json');
     }
   };
 
   const handleDownloadConfig = (type: 'manifest' | 'code') => {
-    const manifestFindings = probeResult?.flagged || [];
-    const codeFindings = codeResult?.findings || [];
-
-    if (manifestFindings.length === 0 && codeFindings.length === 0) return;
+    const findings =
+      type === 'manifest' ? probeResult?.flagged || [] : codeResult?.findings || [];
+    if (findings.length === 0) return;
 
     const jsonConfig = generateVibeshieldConfig({
       type,
-      manifestFindings,
-      codeFindings,
+      findings,
       action: 'warn',
     });
-
     downloadFile(jsonConfig, '.vibeshieldrc.json', 'application/json');
   };
 
@@ -196,7 +193,7 @@ export default function Playground() {
 
   return (
     <div className="w-full max-w-5xl mx-auto rounded-xl border border-zinc-800 bg-zinc-950/80 backdrop-blur overflow-hidden shadow-2xl">
-      {/* Top Tab Bar */}
+      {/* Top Navigation Tabs */}
       <div className="flex border-b border-zinc-800 bg-zinc-900/50">
         <button
           onClick={() => setActiveTab('deps')}
@@ -207,7 +204,7 @@ export default function Playground() {
           }`}
         >
           <ShieldAlert className="w-4 h-4 text-emerald-400" />
-          1. Slopsquatting Auditor (Paste Manifest)
+          1. Check for Fake Packages (npm &amp; PyPI)
         </button>
         <button
           onClick={() => setActiveTab('code')}
@@ -218,12 +215,12 @@ export default function Playground() {
           }`}
         >
           <Terminal className="w-4 h-4 text-cyan-400" />
-          2. Code Vulnerability Scanner (Paste Code)
+          2. Check Code for Secret Leaks &amp; Flaws
         </button>
       </div>
 
       <div className="p-6">
-        {/* TAB 1: MANIFEST SCANNER */}
+        {/* TAB 1: MANIFEST / PACKAGE SCANNER */}
         {activeTab === 'deps' ? (
           <div>
             <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
@@ -240,7 +237,7 @@ export default function Playground() {
                       : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
                   }`}
                 >
-                  npm (package.json)
+                  Node.js (package.json)
                 </button>
                 <button
                   onClick={() => {
@@ -254,7 +251,7 @@ export default function Playground() {
                       : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
                   }`}
                 >
-                  PyPI (requirements.txt)
+                  Python (requirements.txt)
                 </button>
                 <button
                   onClick={() => setManifestInput('')}
@@ -269,7 +266,7 @@ export default function Playground() {
                 disabled={probing || !manifestInput.trim()}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition flex items-center gap-2"
               >
-                {probing ? 'Probing Registry...' : `Audit ${ecosystem.toUpperCase()} Dependencies`}
+                {probing ? 'Checking Registry...' : `Verify ${ecosystem.toUpperCase()} Packages`}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -288,16 +285,16 @@ export default function Playground() {
 
             {probeResult && (
               <div className="mt-4 p-4 rounded-lg border border-zinc-800 bg-zinc-900">
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-zinc-800">
+                <div className="flex flex-wrap items-center justify-between pb-3 mb-3 border-b border-zinc-800 gap-2">
                   <span className="text-xs text-zinc-400 font-mono">
                     Scanned {probeResult.scanned} packages
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => handleExportManifestReport('md')}
                       className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
                     >
-                      <Download className="w-3.5 h-3.5" /> Markdown (.md)
+                      <Download className="w-3.5 h-3.5" /> Report (.md)
                     </button>
                     <button
                       onClick={() => handleExportManifestReport('sarif')}
@@ -308,7 +305,7 @@ export default function Playground() {
                     <button
                       onClick={() => handleDownloadConfig('manifest')}
                       className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
-                      title="Download .vibeshieldrc.json with these packages whitelisted"
+                      title="Download config file with these packages whitelisted"
                     >
                       <FileCode2 className="w-3.5 h-3.5 text-cyan-400" /> Config (.json)
                     </button>
@@ -316,7 +313,7 @@ export default function Playground() {
                       onClick={() => setIsCiModalOpen(true)}
                       className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 rounded border border-emerald-500/30 transition"
                     >
-                      <Terminal className="w-3.5 h-3.5 text-emerald-400" /> Add to GitHub CI
+                      <Terminal className="w-3.5 h-3.5 text-emerald-400" /> Automate in CI/CD
                     </button>
                   </div>
                 </div>
@@ -327,12 +324,18 @@ export default function Playground() {
                   <div>
                     <div className="flex items-center gap-2 text-red-400 font-semibold mb-2">
                       <AlertTriangle className="w-5 h-5" />
-                      <span>{probeResult.flagged.length} Hallucinated Package(s) Detected (HTTP 404):</span>
+                      <span>{probeResult.flagged.length} Fake or Missing Package(s) Found:</span>
                     </div>
+                    <p className="text-xs text-zinc-400 mb-3">
+                      These packages do not exist on the official registry. Attackers can register them to install malware on your system.
+                    </p>
                     <ul className="space-y-2 mt-2">
                       {probeResult.flagged.map((pkg: FlaggedPackage) => (
-                        <li key={pkg.name} className="p-3 bg-red-950/30 border border-red-900/50 rounded text-xs font-mono">
-                          <span className="text-red-300 font-bold">{pkg.name}</span>: {pkg.issue}
+                        <li
+                          key={pkg.name}
+                          className="p-3 bg-red-950/30 border border-red-900/50 rounded text-xs font-mono"
+                        >
+                          <span className="text-red-300 font-bold">{pkg.name}</span>: Not found on {ecosystem === 'npm' ? 'npm' : 'PyPI'}.
                         </li>
                       ))}
                     </ul>
@@ -348,22 +351,23 @@ export default function Playground() {
                 ) : (
                   <div className="flex items-center gap-2 text-emerald-400 text-sm">
                     <CheckCircle2 className="w-5 h-5" />
-                    <span>All {probeResult.scanned} packages verified on {ecosystem === 'npm' ? 'npm' : 'PyPI'}!</span>
+                    <span>All {probeResult.scanned} packages are real and verified on {ecosystem === 'npm' ? 'npm' : 'PyPI'}!</span>
                   </div>
                 )}
               </div>
             )}
           </div>
         ) : (
-          /* TAB 2: CODE SCANNER & SUGGESTED FIXES */
+          /* TAB 2: CODE & SECRET SCANNER */
           <div>
             <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-400">Presets:</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-zinc-400">Try an example:</span>
                 <button
                   onClick={() => {
                     setCodeInput(`export async function POST(req: Request) {
   const event = await req.json();
+  // Anyone can send a fake charge.success event and get free orders!
   if (event.event === 'charge.success') {
     await fulfillOrder(event.data.reference);
   }
@@ -373,7 +377,7 @@ export default function Playground() {
                   }}
                   className="px-2.5 py-1 rounded bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800 text-xs"
                 >
-                  Paystack Webhook
+                  Fake Payment Webhook
                 </button>
                 <button
                   onClick={() => {
@@ -382,18 +386,19 @@ export default function Playground() {
                   }}
                   className="px-2.5 py-1 rounded bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800 text-xs"
                 >
-                  Supabase Client Leak
+                  Database Admin Key Leak
                 </button>
                 <button
                   onClick={() => {
                     setCodeInput(`export const config = {
+  // NEXT_PUBLIC_ sends this secret directly to the browser!
   apiKey: process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY,
 };`);
                     setCodeResult(null);
                   }}
                   className="px-2.5 py-1 rounded bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800 text-xs"
                 >
-                  Secret Bleed
+                  Exposed Secret Key
                 </button>
                 <button
                   onClick={() => {
@@ -411,7 +416,7 @@ export default function Playground() {
                 disabled={auditingCode || !codeInput.trim()}
                 className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition flex items-center gap-2"
               >
-                {auditingCode ? 'Auditing Code...' : 'Scan Code & Generate Fix'}
+                {auditingCode ? 'Checking Code...' : 'Check Code & Show Fix'}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -419,23 +424,23 @@ export default function Playground() {
             <textarea
               value={codeInput}
               onChange={(e) => setCodeInput(e.target.value)}
-              placeholder="Paste any Next.js API route, component, or webhook handler code here to scan..."
+              placeholder="Paste any Next.js API route, component, or webhook code here to check for security flaws..."
               rows={9}
               className="w-full font-mono text-xs bg-zinc-900/90 text-zinc-200 p-4 rounded-lg border border-zinc-800 focus:outline-none focus:border-cyan-500 resize-none"
             />
 
             {codeResult && (
               <div className="mt-6 space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800 bg-zinc-900/60">
+                <div className="flex flex-wrap items-center justify-between p-3 rounded-lg border border-zinc-800 bg-zinc-900/60 gap-2">
                   <span className="text-xs text-zinc-400 font-mono">
                     Scanned {codeResult.scannedLines} lines of code
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => handleExportCodeReport('md')}
                       className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
                     >
-                      <Download className="w-3.5 h-3.5" /> Markdown (.md)
+                      <Download className="w-3.5 h-3.5" /> Report (.md)
                     </button>
                     <button
                       onClick={() => handleExportCodeReport('sarif')}
@@ -446,7 +451,7 @@ export default function Playground() {
                     <button
                       onClick={() => handleDownloadConfig('code')}
                       className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
-                      title="Download .vibeshieldrc.json with these rules tuned to warning"
+                      title="Download config file with these rules tuned to warning"
                     >
                       <FileCode2 className="w-3.5 h-3.5 text-cyan-400" /> Config (.json)
                     </button>
@@ -454,7 +459,7 @@ export default function Playground() {
                       onClick={() => setIsCiModalOpen(true)}
                       className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 rounded border border-emerald-500/30 transition"
                     >
-                      <Terminal className="w-3.5 h-3.5 text-emerald-400" /> Add to GitHub CI
+                      <Terminal className="w-3.5 h-3.5 text-emerald-400" /> Automate in CI/CD
                     </button>
                   </div>
                 </div>
@@ -464,64 +469,61 @@ export default function Playground() {
                     {codeResult.error}
                   </div>
                 ) : codeResult.findings && codeResult.findings.length > 0 ? (
-                  codeResult.findings.map((f: AuditFinding, idx: number) => (
-                    <div
-                      key={idx}
-                      className="rounded-xl border border-red-900/60 bg-zinc-900/90 p-5 space-y-4 shadow-lg"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-5 h-5 text-red-400" />
-                          <h4 className="font-semibold text-white text-sm">{f.title}</h4>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-red-950 text-red-300 border border-red-800 font-mono font-bold">
-                            {f.severity}
-                          </span>
+                  <>
+                    {codeResult.findings.map((f: AuditFinding, idx: number) => (
+                      <div
+                        key={idx}
+                        className="rounded-xl border border-red-900/60 bg-zinc-900/90 p-5 space-y-4 shadow-lg"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5 text-red-400" />
+                            <h4 className="font-semibold text-white text-sm">{f.title}</h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-red-950 text-red-300 border border-red-800 font-mono font-bold">
+                              {f.severity}
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-xs font-mono text-zinc-500">{f.ruleId}</span>
-                      </div>
 
-                      <p className="text-xs text-zinc-300 leading-relaxed">{f.description}</p>
+                        <p className="text-xs text-zinc-300 leading-relaxed">{f.description}</p>
 
-                      {/* Remediation Block */}
-                      <div className="rounded-lg border border-emerald-900/50 bg-black/60 p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4" /> Suggested Remediation Fix
-                          </span>
-                          <button
-                            onClick={() => copyToClipboard(f.suggestedFix, idx)}
-                            className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white bg-zinc-800 px-2.5 py-1 rounded transition"
-                          >
-                            {copiedIndex === idx ? (
-                              <>
-                                <Check className="w-3.5 h-3.5 text-emerald-400" /> Copied
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5" /> Copy Fix
-                              </>
-                            )}
-                          </button>
+                        {/* Remediated Code Block */}
+                        <div className="rounded-lg border border-emerald-900/50 bg-black/60 p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                              <CheckCircle2 className="w-4 h-4" /> Recommended Safe Code
+                            </span>
+                            <button
+                              onClick={() => copyToClipboard(f.suggestedFix || '', idx)}
+                              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white bg-zinc-800 px-2.5 py-1 rounded transition"
+                            >
+                              {copiedIndex === idx ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" /> Copied
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5" /> Copy Code
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <pre className="font-mono text-xs text-zinc-200 overflow-x-auto whitespace-pre-wrap">
+                            {f.suggestedFix}
+                          </pre>
                         </div>
-                        <pre className="font-mono text-xs text-zinc-200 overflow-x-auto whitespace-pre-wrap">
-                          {f.suggestedFix}
-                        </pre>
                       </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-4 rounded-lg border border-emerald-900/50 bg-emerald-950/20 text-emerald-400 text-sm flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span>No vulnerabilities or secret bleeds detected across {codeResult.scannedLines} lines of code!</span>
-                  </div>
-                )}
+                    ))}
 
-                {codeResult.findings && codeResult.findings.length > 0 && (
-                  <div className="mt-4">
                     <TailoredCliSnippet
                       type="code"
                       findings={codeResult.findings}
                     />
+                  </>
+                ) : (
+                  <div className="p-4 rounded-lg border border-emerald-900/50 bg-emerald-950/20 text-emerald-400 text-sm flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>No secret leaks or dangerous code patterns found across {codeResult.scannedLines} lines of code!</span>
                   </div>
                 )}
               </div>
