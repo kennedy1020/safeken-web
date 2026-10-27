@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { exportToMarkdown, exportToSarif, downloadFile } from '@/lib/exportReports';
 import CiSnippetModal from '@/components/CiSnippetModal';
+import TailoredCliSnippet from '@/components/TailoredCliSnippet';
 
 const SAMPLES = {
   npm: JSON.stringify(
@@ -306,6 +307,14 @@ export default function Playground() {
                         </li>
                       ))}
                     </ul>
+
+                    <div className="mt-4">
+                      <TailoredCliSnippet
+                        type="manifest"
+                        ecosystem={ecosystem}
+                        findings={probeResult.flagged}
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-emerald-400 text-sm">
@@ -468,6 +477,15 @@ export default function Playground() {
                   <div className="p-4 rounded-lg border border-emerald-900/50 bg-emerald-950/20 text-emerald-400 text-sm flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5" />
                     <span>No vulnerabilities or secret bleeds detected across {codeResult.scannedLines} lines of code!</span>
+                  </div>
+                )}
+
+                {codeResult.findings && codeResult.findings.length > 0 && (
+                  <div className="mt-4">
+                    <TailoredCliSnippet
+                      type="code"
+                      findings={codeResult.findings}
+                    />
                   </div>
                 )}
               </div>
