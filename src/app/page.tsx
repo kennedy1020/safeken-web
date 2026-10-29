@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Icon } from '@/components/Icons';
 import DeterministicVsAi from '@/components/DeterministicVsAi';
 import TerminalPreview from '@/components/TerminalPreview';
 import LiveScanner from '@/components/LiveScanner';
 
 export const metadata: Metadata = {
-  title: 'SafeKen VibeShield | Deterministic AI-Code Security Scanner',
+  title: 'SafeKen VibeShield — Deterministic Security for AI Codebases',
   description:
     'Detect AI package hallucinations (slopsquatting), client-side secret bleeds, and unverified payment webhooks with zero prompt drift.',
   keywords: [
@@ -27,36 +28,44 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-emerald-500/20 selection:text-emerald-400">
+    <main className="min-h-screen bg-[var(--ks-paper-deep)] text-[var(--ks-text)]">
       {/* Navigation Bar */}
-      <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono font-bold">
-              🛡️
+      <header className="sticky top-0 z-40 border-b border-[var(--ks-rule)] bg-[var(--ks-paper-deep)]/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8 h-14">
+          {/* Brand */}
+          <Link href="/" className="flex items-center gap-2.5 text-[var(--ks-ink)] hover:opacity-90 transition-opacity">
+            <span className="w-6 h-6 rounded flex items-center justify-center bg-[var(--ks-paper-raised)] border border-[var(--ks-edge)] text-[var(--ks-patina)]">
+              <Icon name="shield" size={14} />
             </span>
-            <span className="font-mono text-base font-bold tracking-tight text-zinc-100">
-              SafeKen <span className="text-emerald-400">VibeShield</span>
+            <span className="font-semibold text-sm tracking-tight">
+              SafeKen <span className="font-normal text-[var(--ks-text-muted)]">VibeShield</span>
             </span>
-            <span className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 font-mono text-[11px] text-zinc-400">
+            <span className="tabular-nums font-mono text-[10px] px-1.5 py-0.5 rounded border border-[var(--ks-rule)] text-[var(--ks-text-muted)]">
               v1.1.3
             </span>
-          </div>
+          </Link>
 
-          <div className="flex items-center gap-4 text-sm font-medium">
+          {/* Nav Links & GitHub */}
+          <div className="flex items-center gap-5 text-xs font-medium">
+            <nav className="hidden sm:flex items-center gap-5 text-[var(--ks-text-muted)]">
+              <a href="#scanner" className="hover:text-[var(--ks-ink)] transition-colors">
+                Workbench
+              </a>
+              <a href="#terminal" className="hover:text-[var(--ks-ink)] transition-colors">
+                Terminal Proof
+              </a>
+              <a href="#architecture" className="hover:text-[var(--ks-ink)] transition-colors">
+                Architecture
+              </a>
+            </nav>
+
             <Link
               href="https://github.com/kennedy1020/vibe-shield"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3.5 py-1.5 text-zinc-300 transition-all hover:border-zinc-700 hover:text-zinc-100"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[var(--ks-edge)] bg-[var(--ks-paper-raised)] text-[var(--ks-ink)] hover:border-[var(--ks-patina)] transition-colors text-xs font-medium"
             >
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path
-                  fillRule="evenodd"
-                  clipRule="evenodd"
-                  d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                />
-              </svg>
+              <Icon name="github" size={14} />
               <span>GitHub</span>
             </Link>
           </div>
@@ -64,53 +73,124 @@ export default function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative mx-auto max-w-7xl px-6 pt-20 pb-16 text-center sm:pt-28">
-        <div className="mx-auto max-w-3xl space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-xs font-semibold tracking-wide text-emerald-400">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-            LIVE ON NPM REGISTRY
-          </div>
+      <section className="pt-16 pb-20 sm:pt-24 sm:pb-28">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            {/* Left Column: Claims & Execution */}
+            <div className="lg:col-span-7 space-y-6">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-[var(--ks-ink)] leading-[1.12]">
+                Deterministic Security for AI-Generated Codebases
+              </h1>
 
-          <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl sm:leading-[1.1]">
-            Deterministic Security for{' '}
-            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
-              AI-Generated Code
-            </span>
-          </h1>
+              <p className="text-base sm:text-lg text-[var(--ks-text-muted)] leading-relaxed">
+                Detect dependency slopsquatting, client-side secret bleeds, and unverified payment webhooks before production. Mathematical AST proof with zero API tokens.
+              </p>
 
-          <p className="text-lg text-zinc-400 sm:text-xl leading-relaxed">
-            Stop dependency slopsquatting, client-side secret bleeds, and unverified payment webhooks before they reach production. Mathematical AST proof with zero API tokens.
-          </p>
+              {/* Quick CLI Execution Box */}
+              <div className="rounded-lg border border-[var(--ks-edge)] bg-[var(--ks-paper)] p-3 sm:p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 font-mono text-xs overflow-x-auto text-[var(--ks-ink)] py-1">
+                  <span className="text-[var(--ks-patina)] font-bold select-none">$</span>
+                  <span className="whitespace-nowrap">npx @kennedy1020/vibe-shield scan .</span>
+                </div>
 
-          {/* Quick Execution Pill */}
-          <div className="mx-auto mt-8 flex max-w-xl items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/90 p-2 shadow-2xl font-mono text-xs sm:text-sm">
-            <div className="flex items-center gap-3 pl-3 text-zinc-300 truncate">
-              <span className="text-emerald-400 font-bold">$</span>
-              <span className="truncate">npx @kennedy1020/vibe-shield@latest scan .</span>
+                <a
+                  href="#scanner"
+                  className="shrink-0 flex items-center justify-center gap-1.5 px-4 py-2 rounded text-xs font-semibold bg-[var(--ks-ink)] text-[var(--ks-paper-deep)] hover:bg-white transition-colors"
+                >
+                  <span>Open Playground</span>
+                  <Icon name="next" size={13} />
+                </a>
+              </div>
+
+              {/* Factual Proof Points */}
+              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[var(--ks-rule)] text-xs">
+                <div>
+                  <div className="font-semibold text-[var(--ks-ink)] mb-0.5">Sub-2s Run</div>
+                  <div className="text-[var(--ks-text-muted)]">Local CLI and CI runner execution</div>
+                </div>
+                <div>
+                  <div className="font-semibold text-[var(--ks-ink)] mb-0.5">Zero Remote Egress</div>
+                  <div className="text-[var(--ks-text-muted)]">Code never leaves your environment</div>
+                </div>
+                <div>
+                  <div className="font-semibold text-[var(--ks-ink)] mb-0.5">Binary Exit Code</div>
+                  <div className="text-[var(--ks-text-muted)]">exit 0 for pass, exit 1 for block</div>
+                </div>
+              </div>
             </div>
-            <span className="hidden sm:inline-block rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-400">
-              Sub-2s Run
-            </span>
+
+            {/* Right Column: Authentic Terminal Specimen */}
+            <div className="lg:col-span-5">
+              <div className="rounded-lg border border-[var(--ks-edge)] bg-[var(--ks-paper-deep)] overflow-hidden text-xs font-mono">
+                {/* Terminal Header */}
+                <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[var(--ks-rule)] bg-[var(--ks-paper-raised)] text-[11px] text-[var(--ks-text-muted)]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[var(--ks-vermilion)]" />
+                    <span className="text-[var(--ks-ink)]">vibe-shield audit</span>
+                  </div>
+                  <span className="tabular-nums">1.14s</span>
+                </div>
+
+                {/* Output Content */}
+                <div className="p-4 space-y-1.5 text-[11px] leading-relaxed text-[var(--ks-text)]">
+                  <div className="text-[var(--ks-ink)] font-semibold">SafeKen VibeShield v1.1.3</div>
+                  <div className="text-[var(--ks-text-faint)]">Probing package.json against npm registry...</div>
+                  <div className="text-[var(--ks-vermilion)] font-medium pt-1">
+                    CRITICAL [dependency-hallucination]: 1 issue found
+                  </div>
+                  <div className="text-[var(--ks-text-muted)] pl-2">
+                    • package.json:18
+                  </div>
+                  <div className="text-[var(--ks-vermilion)] pl-2">
+                    Package &quot;react-use-stream-ai-fake-package-9912&quot; does not exist on npm (HTTP 404)
+                  </div>
+                  <div className="text-amber-300 pl-2">
+                    Slopsquatting risk: Attacker can publish this package to hijack build
+                  </div>
+                  <div className="pt-2 text-[var(--ks-rule)] select-none">──────────────────────────────────────</div>
+                  <div className="flex items-center justify-between text-[var(--ks-vermilion)] font-semibold pt-1">
+                    <span>Audit failed with exit code 1</span>
+                    <span className="tabular-nums text-[10px] text-[var(--ks-text-faint)]">PID 4821</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Live Interactive Playground */}
+      {/* Live Interactive Scanner */}
       <LiveScanner />
 
-      {/* Interactive Terminal Section */}
+      {/* Terminal Proof Section */}
       <TerminalPreview />
 
-      {/* Comparison Engine Section */}
+      {/* Architecture Comparison Section */}
       <DeterministicVsAi />
 
       {/* Footer */}
-      <footer className="border-t border-zinc-800/80 bg-zinc-950 py-12 text-center text-xs text-zinc-400 font-mono">
-        <div className="mx-auto max-w-7xl px-6 space-y-2">
-          <p>© 2026 SafeKen VibeShield. Open-source security under MIT License.</p>
-          <p className="text-zinc-400">
-            Built for developers using Cursor, Copilot, and LLMs who require deterministic CI builds.
-          </p>
+      <footer className="border-t border-[var(--ks-rule)] bg-[var(--ks-paper-deep)] py-12 text-xs text-[var(--ks-text-muted)]">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="font-semibold text-[var(--ks-ink)]">SafeKen VibeShield</span>
+            <span className="text-[var(--ks-rule)]">|</span>
+            <span>Deterministic AST Security Scanner</span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Link
+              href="https://github.com/kennedy1020/vibe-shield"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[var(--ks-ink)] transition-colors"
+            >
+              GitHub Source
+            </Link>
+            <span className="text-[var(--ks-rule)]">•</span>
+            <span>MIT License</span>
+            <span className="text-[var(--ks-rule)]">•</span>
+            <span>2026 SafeKen</span>
+          </div>
         </div>
       </footer>
     </main>

@@ -1,26 +1,116 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --ks-paper: oklch(22% 0 0);
+  --ks-paper-raised: oklch(26% 0 0);
+  --ks-paper-deep: oklch(17% 0 0);
+  --ks-gray: oklch(31% 0 0);
+  --ks-gray-2: oklch(36% 0 0);
+  --ks-ink: oklch(96% 0 0);
+  --ks-text: oklch(88% 0 0);
+  --ks-text-muted: oklch(72% 0 0);
+  --ks-text-faint: oklch(58% 0 0);
+  --ks-rule: oklch(93% 0 0 / 0.12);
+  --ks-edge: oklch(93% 0 0 / 0.28);
+  --ks-patina: oklch(76% 0.088 190);
+  --ks-patina-deep: oklch(76% 0.088 190);
+  --ks-patina-pale: oklch(38% 0.045 190 / 0.3);
+  --ks-vermilion: oklch(76% 0.12 35);
+  --ks-link-line: oklch(93% 0 0 / 0.3);
+  --ks-lift: 0 2px 10px oklch(0% 0 0 / 0.3);
+  --ks-lift-2: 0 8px 24px oklch(0% 0 0 / 0.4);
+  --ks-focus-ring: var(--ks-patina);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: var(--ks-paper);
+  --color-paper-raised: var(--ks-paper-raised);
+  --color-paper-deep: var(--ks-paper-deep);
+  --color-ink: var(--ks-ink);
+  --color-text-main: var(--ks-text);
+  --color-text-muted: var(--ks-text-muted);
+  --color-rule: var(--ks-rule);
+  --color-edge: var(--ks-edge);
+  --color-patina: var(--ks-patina);
+  --color-vermilion: var(--ks-vermilion);
+  --font-sans: var(--font-albert-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--ks-paper-deep);
+  color: var(--ks-text);
+  font-family: var(--font-albert-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  margin: 0;
+  padding: 0;
+}
+
+/* Headings: strict 2-line maximum, tight tracking */
+h1, h2, h3, h4, h5, h6 {
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  letter-spacing: -0.025em;
+  color: var(--ks-ink);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Tabular figures for numbers, timers, line counts */
+.tabular-nums, [data-tabular] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Capped line length for prose */
+p {
+  margin: 0;
+  max-width: 68ch;
+}
+
+/* Interactive elements: responsive press feedback */
+button, [role="button"], a.btn {
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+
+button:active, [role="button"]:active, a.btn:active {
+  transform: scale(0.97);
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--ks-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ks-paper-deep);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ks-gray);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ks-gray-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

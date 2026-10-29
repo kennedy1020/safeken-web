@@ -1,6 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { Icon } from '@/components/Icons';
+import {
+  exportToMarkdown,
+  exportToSarif,
+  generateVibeshieldConfig,
+  downloadFile,
+  FindingItem,
+} from '@/lib/exportReports';
+import CiSnippetModal from '@/components/CiSnippetModal';
 
 type ScanTarget = 'code' | 'npm' | 'pypi';
 
@@ -81,11 +90,11 @@ export default function LiveScanner() {
   const [scanTime, setScanTime] = useState<number | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [pasteFeedback, setPasteFeedback] = useState(false);
+  const [isCiModalOpen, setIsCiModalOpen] = useState(false);
 
-  // Rate limit cooldown state (in seconds)
+  // Rate limit cooldown state in seconds
   const [cooldownSeconds, setCooldownSeconds] = useState<number | null>(null);
 
-  // Active countdown timer effect
   useEffect(() => {
     if (cooldownSeconds === null || cooldownSeconds <= 0) return;
 
@@ -93,7 +102,7 @@ export default function LiveScanner() {
       setCooldownSeconds((prev) => {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
-          return null; // Timer finished: re-enables scanner button
+          return null;
         }
         return prev - 1;
       });
@@ -114,14 +123,7 @@ export default function LiveScanner() {
       setCopyFeedback(true);
       setTimeout(() => setCopyFeedback(false), 2000);
     } catch {
-      const textarea = document.createElement('textarea');
-      textarea.value = inputCode;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      setCopyFeedback(true);
-      setTimeout(() => setCopyFeedback(false), 2000);
+      // Fallback
     }
   };
 
@@ -135,7 +137,7 @@ export default function LiveScanner() {
         setTimeout(() => setPasteFeedback(false), 2000);
       }
     } catch {
-      alert('Clipboard access denied. Please paste using Ctrl+V or Cmd+V directly in the editor.');
+      // Ignore if clipboard denied
     }
   };
 
@@ -176,7 +178,6 @@ export default function LiveScanner() {
           body: JSON.stringify(payload),
         });
 
-        // Handle HTTP 429 Rate Limit
         if (res.status === 429) {
           const rateData = await res.json();
           const retrySeconds = Number(rateData.retryAfterSeconds) || 60;
@@ -186,8 +187,8 @@ export default function LiveScanner() {
             id: 'rate-limit-hit',
             rule: 'rate-limit-cooldown',
             severity: 'WARNING',
-            message: rateData.error || 'Too many verification requests.',
-            remediation: `Registry queries are throttled per IP. Wait for the live countdown to expire before initiating another check.`,
+            message: rateData.error || 'Registry query threshold reached.',
+            remediation: 'Registry verification calls are throttled per IP to prevent rate exhaustion. Wait for the cooldown to reset.',
           });
 
           setFindings(results);
@@ -217,13 +218,13 @@ export default function LiveScanner() {
           id: 'parse-err',
           rule: 'manifest-parse-error',
           severity: 'WARNING',
-          message: error.message || 'Malformed input syntax.',
-          remediation: 'Check that input syntax matches expected JSON or requirements.txt format.',
+          message: error.message || 'Malformed manifest syntax.',
+          remediation: 'Verify that the input matches valid JSON or requirements.txt syntax.',
         });
       }
     } else {
-      // Local TSX/JS AST boundary checks
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      // Local TSX/JS AST checks
+      await new Promise((resolve) => setTimeout(resolve, 200));
       const lines = inputCode.split('\n');
       const hasUseClient = inputCode.includes("'use client'") || inputCode.includes('"use client"');
 
@@ -241,8 +242,8 @@ export default function LiveScanner() {
             rule: 'client-side-secret-leak',
             severity: 'CRITICAL',
             line: lineNum,
-            message: 'Server-side private key exposed inside a client component ("use client")',
-            remediation: 'Keep master and secret keys inside Server Actions or route handlers (/api).',
+            message: 'Server-side private credential referenced inside a "use client" component boundary',
+            remediation: 'Move master and secret keys to Server Actions or Route Handlers (/app/api).',
           });
         }
 
@@ -258,8 +259,8 @@ export default function LiveScanner() {
               rule: 'unverified-payment-webhook',
               severity: 'CRITICAL',
               line: lineNum,
-              message: 'State-changing webhook executed without HMAC SHA-512 cryptographic signature validation',
-              remediation: 'Verify crypto.createHmac("sha512", secret) digest before executing database records.',
+              message: 'State-changing webhook event executed without cryptographic HMAC SHA-512 validation',
+              remediation: 'Compute crypto.createHmac("sha512", secret) digest against request body before fulfilling orders.',
             });
           }
         }
@@ -271,317 +272,388 @@ export default function LiveScanner() {
     setIsScanning(false);
   };
 
+  // Export handlers
+  const handleExportMarkdown = () => {
+    if (!findings) return;
+    const findingItems: FindingItem[] = findings.map((f) => ({
+      name: f.rule,
+      issue: f.message,
+      ruleId: f.rule,
+      severity: f.severity,
+      title: f.rule,
+      description: f.message,
+      suggestedFix: f.remediation,
+    }));
+
+    const content = exportToMarkdown({
+      type: activeTab === 'code' ? 'code' : 'manifest',
+      ecosystem: activeTab === 'code' ? undefined : activeTab,
+      findings: findingItems,
+    });
+    downloadFile(content, `vibeshield-audit-${Date.now()}.md`, 'text/markdown');
+  };
+
+  const handleExportSarif = () => {
+    if (!findings) return;
+    const findingItems: FindingItem[] = findings.map((f) => ({
+      name: f.rule,
+      issue: f.message,
+      ruleId: f.rule,
+      severity: f.severity,
+      title: f.rule,
+      description: f.message,
+      suggestedFix: f.remediation,
+    }));
+
+    const content = exportToSarif({
+      type: activeTab === 'code' ? 'code' : 'manifest',
+      ecosystem: activeTab === 'code' ? undefined : activeTab,
+      findings: findingItems,
+    });
+    downloadFile(content, 'vibe-shield.sarif', 'application/json');
+  };
+
+  const handleExportConfig = () => {
+    if (!findings) return;
+    const content = generateVibeshieldConfig({
+      type: activeTab === 'code' ? 'code' : 'manifest',
+      findings: findings.map((f) => ({ ruleId: f.rule, name: f.id })),
+    });
+    downloadFile(content, '.vibeshieldrc.json', 'application/json');
+  };
+
   return (
-    <section className="relative overflow-hidden bg-zinc-950 py-16 text-zinc-100 sm:py-24">
+    <section id="scanner" className="py-20 bg-[var(--ks-paper-deep)]">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mx-auto max-w-2xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 font-mono text-xs font-semibold text-emerald-400">
-            INTERACTIVE AUDIT ENGINE
-          </div>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
-            Test Your Code in the Browser Playground
+        {/* Section Header */}
+        <div className="max-w-3xl mb-8">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ks-patina)] mb-2">
+            Interactive Verification Workbench
+          </p>
+          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[var(--ks-ink)]">
+            Test Your Code Against Deterministic Rules
           </h2>
-          <p className="mt-2 text-sm text-zinc-400 sm:text-base">
-            Paste source files, <code className="text-zinc-300">package.json</code>, or <code className="text-zinc-300">requirements.txt</code> to verify dependencies and AST boundaries against live registries.
+          <p className="mt-2 text-sm sm:text-base text-[var(--ks-text-muted)]">
+            Paste source components or manifests to verify against official registries and semantic AST boundaries.
           </p>
         </div>
 
-        {/* Live Rate Limit Alert Banner */}
+        {/* Rate limit warning */}
         {cooldownSeconds !== null && (
-          <div className="mt-6 flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-amber-200">
-            <div className="flex items-center gap-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-amber-500/40 bg-amber-500/20 font-mono text-xs font-bold text-amber-300">
-                429
+          <div className="mb-4 flex items-center justify-between rounded border border-[var(--ks-rule)] bg-[var(--ks-paper-raised)] px-4 py-3 text-xs text-[var(--ks-text)]">
+            <div className="flex items-center gap-2.5">
+              <span className="font-mono font-semibold text-[var(--ks-vermilion)]">HTTP 429</span>
+              <span className="text-[var(--ks-text-muted)]">
+                Registry queries paused to prevent upstream rate exhaustion. Scanner unlocks automatically.
               </span>
-              <div>
-                <p className="text-xs font-semibold sm:text-sm">Rate limit threshold reached</p>
-                <p className="text-[11px] text-amber-400/80">
-                  Registry queries paused to prevent outbound abuse. Scanner unlocks automatically.
-                </p>
-              </div>
             </div>
-            <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-900/40 px-3 py-1 font-mono text-xs font-bold text-amber-300">
-              <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
-              <span>{cooldownSeconds}s</span>
-            </div>
-          </div>
-        )}
-
-        {/* Top Control Bar */}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-x border-t border-zinc-800 bg-zinc-900/90 p-3 sm:p-4">
-          {/* Presets */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs uppercase tracking-wider text-zinc-400">Presets:</span>
-            <button
-              onClick={() => loadPreset(PRESETS.secretLeak)}
-              className="rounded-md border border-zinc-700 bg-zinc-800/80 px-2.5 py-1 font-mono text-xs text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
-            >
-              Secret Bleed
-            </button>
-            <button
-              onClick={() => loadPreset(PRESETS.webhook)}
-              className="rounded-md border border-zinc-700 bg-zinc-800/80 px-2.5 py-1 font-mono text-xs text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
-            >
-              Unverified Webhook
-            </button>
-            <button
-              onClick={() => loadPreset(PRESETS.npmSlop)}
-              className="rounded-md border border-zinc-700 bg-zinc-800/80 px-2.5 py-1 font-mono text-xs text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
-            >
-              npm Slop
-            </button>
-            <button
-              onClick={() => loadPreset(PRESETS.pypiSlop)}
-              className="rounded-md border border-zinc-700 bg-zinc-800/80 px-2.5 py-1 font-mono text-xs text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
-            >
-              PyPI Slop
-            </button>
-          </div>
-
-          {/* Mode Switcher */}
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950 p-1">
-            <button
-              onClick={() => {
-                setActiveTab('code');
-                setFindings(null);
-              }}
-              className={`rounded-md px-3 py-1 font-mono text-xs transition-colors ${
-                activeTab === 'code'
-                  ? 'border border-emerald-500/30 bg-emerald-500/20 text-emerald-400 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              TSX / JS Code
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('npm');
-                setInputCode(PRESETS.npmSlop.snippet);
-                setFindings(null);
-              }}
-              className={`rounded-md px-3 py-1 font-mono text-xs transition-colors ${
-                activeTab === 'npm'
-                  ? 'border border-emerald-500/30 bg-emerald-500/20 text-emerald-400 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              package.json
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('pypi');
-                setInputCode(PRESETS.pypiSlop.snippet);
-                setFindings(null);
-              }}
-              className={`rounded-md px-3 py-1 font-mono text-xs transition-colors ${
-                activeTab === 'pypi'
-                  ? 'border border-emerald-500/30 bg-emerald-500/20 text-emerald-400 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              requirements.txt
-            </button>
-          </div>
-        </div>
-
-        {/* Action Utility Bar: Clear, Copy, Paste */}
-        <div className="flex items-center justify-between border-x border-t border-zinc-800 bg-zinc-900/60 px-4 py-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePaste}
-              className="flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800/80 px-2.5 py-1 font-mono text-xs text-zinc-300 transition-colors hover:border-zinc-500 hover:bg-zinc-700 hover:text-white"
-              title="Paste from clipboard"
-            >
-              <svg className="h-3.5 w-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
-              <span>{pasteFeedback ? 'Pasted!' : 'Paste'}</span>
-            </button>
-
-            <button
-              onClick={handleCopy}
-              disabled={!inputCode}
-              className="flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800/80 px-2.5 py-1 font-mono text-xs text-zinc-300 transition-colors hover:border-zinc-500 hover:bg-zinc-700 hover:text-white disabled:opacity-40"
-              title="Copy to clipboard"
-            >
-              {copyFeedback ? (
-                <>
-                  <svg className="h-3.5 w-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-emerald-400">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <svg className="h-3.5 w-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                    />
-                  </svg>
-                  <span>Copy</span>
-                </>
-              )}
-            </button>
-
-            <button
-              onClick={handleClear}
-              disabled={!inputCode}
-              className="flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-1 font-mono text-xs text-zinc-400 transition-colors hover:border-rose-500/40 hover:bg-rose-950/20 hover:text-rose-400 disabled:opacity-30"
-              title="Clear editor contents"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-              <span>Clear</span>
-            </button>
-          </div>
-
-          <span className="font-mono text-xs text-zinc-500">
-            {inputCode ? `${inputCode.split('\n').length} lines` : 'Empty'}
-          </span>
-        </div>
-
-        {/* Text Input Area */}
-        <div className="relative border-x border-zinc-800 bg-[#090a0f]">
-          <textarea
-            value={inputCode}
-            onChange={(e) => {
-              setInputCode(e.target.value);
-              setFindings(null);
-            }}
-            rows={13}
-            spellCheck={false}
-            placeholder={
-              activeTab === 'code'
-                ? '// Paste React/Next.js code here...'
-                : activeTab === 'npm'
-                ? '{\n  "dependencies": {\n    // Paste package.json contents here...\n  }\n}'
-                : '# Paste requirements.txt contents here...\nfastapi>=0.111.0\npydantic>=2.0.0'
-            }
-            className="w-full resize-y bg-transparent p-4 font-mono text-xs leading-relaxed text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-0 sm:text-sm"
-          />
-
-          {/* Execution Bar */}
-          <div className="flex items-center justify-between border-t border-zinc-800/80 bg-zinc-900/60 px-4 py-2.5">
-            <span className="font-mono text-xs text-zinc-400">
-              Target: {activeTab === 'code' ? 'AST Boundary Parser' : activeTab === 'npm' ? 'registry.npmjs.org' : 'pypi.org'}
+            <span className="tabular-nums font-mono font-semibold text-[var(--ks-ink)] bg-[var(--ks-paper-deep)] px-2.5 py-1 rounded border border-[var(--ks-edge)]">
+              {cooldownSeconds}s
             </span>
-
-            <button
-              onClick={runLiveScan}
-              disabled={isScanning || !inputCode.trim() || cooldownSeconds !== null}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-xs font-bold transition-all ${
-                cooldownSeconds !== null
-                  ? 'border border-amber-500/40 bg-amber-500/10 text-amber-300 cursor-not-allowed'
-                  : 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400 disabled:opacity-50'
-              }`}
-            >
-              {cooldownSeconds !== null ? (
-                <>
-                  <svg className="h-3.5 w-3.5 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  <span>Cooldown ({cooldownSeconds}s)</span>
-                </>
-              ) : isScanning ? (
-                <>
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-950 border-t-transparent" />
-                  Verifying...
-                </>
-              ) : (
-                <>
-                  <span>Run VibeShield Scan</span>
-                  <span className="font-normal text-zinc-800">↵</span>
-                </>
-              )}
-            </button>
           </div>
-        </div>
+        )}
 
-        {/* Audit Results Panel */}
-        {findings !== null && (
-          <div className="rounded-b-xl border border-zinc-800 bg-[#0c0d13] p-4 transition-all sm:p-6">
-            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    findings.some((f) => f.severity === 'CRITICAL')
-                      ? 'bg-rose-500'
-                      : findings.some((f) => f.severity === 'WARNING')
-                      ? 'bg-amber-400'
-                      : 'bg-emerald-400'
-                  }`}
-                />
-                <span className="font-mono text-xs font-bold uppercase tracking-wide text-zinc-300">
-                  {findings.length === 0
-                    ? '0 Flaws Detected — Clean Pass'
-                    : `${findings.length} Finding${findings.length > 1 ? 's' : ''} Logged`}
-                </span>
-              </div>
-              <span className="font-mono text-xs text-zinc-400">
-                Latency: {scanTime ?? 0}ms • {activeTab === 'code' ? 'AST Local' : 'Live Registry Probing'}
+        {/* Main Workbench Container */}
+        <div className="rounded-lg border border-[var(--ks-edge)] bg-[var(--ks-paper)] overflow-hidden">
+          {/* Toolbar: Targets and Presets */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-[var(--ks-rule)] bg-[var(--ks-paper-raised)]">
+            {/* Target Selectors */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  setActiveTab('code');
+                  setFindings(null);
+                }}
+                className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                  activeTab === 'code'
+                    ? 'border-[var(--ks-patina)] bg-[var(--ks-paper)] text-[var(--ks-ink)] font-semibold'
+                    : 'border-[var(--ks-rule)] bg-transparent text-[var(--ks-text-muted)] hover:text-[var(--ks-ink)]'
+                }`}
+              >
+                TSX / JS AST
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('npm');
+                  setInputCode(PRESETS.npmSlop.snippet);
+                  setFindings(null);
+                }}
+                className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                  activeTab === 'npm'
+                    ? 'border-[var(--ks-patina)] bg-[var(--ks-paper)] text-[var(--ks-ink)] font-semibold'
+                    : 'border-[var(--ks-rule)] bg-transparent text-[var(--ks-text-muted)] hover:text-[var(--ks-ink)]'
+                }`}
+              >
+                package.json (npm)
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('pypi');
+                  setInputCode(PRESETS.pypiSlop.snippet);
+                  setFindings(null);
+                }}
+                className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                  activeTab === 'pypi'
+                    ? 'border-[var(--ks-patina)] bg-[var(--ks-paper)] text-[var(--ks-ink)] font-semibold'
+                    : 'border-[var(--ks-rule)] bg-transparent text-[var(--ks-text-muted)] hover:text-[var(--ks-ink)]'
+                }`}
+              >
+                requirements.txt (PyPI)
+              </button>
+            </div>
+
+            {/* Presets */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--ks-text-muted)]">
+              <span className="text-[11px] font-medium mr-1">Load scenario:</span>
+              <button
+                onClick={() => loadPreset(PRESETS.secretLeak)}
+                className="px-2.5 py-1 rounded border border-[var(--ks-rule)] bg-[var(--ks-paper)] text-[var(--ks-text-muted)] hover:text-[var(--ks-ink)] hover:border-[var(--ks-edge)] transition-colors text-[11px]"
+              >
+                Secret Bleed
+              </button>
+              <button
+                onClick={() => loadPreset(PRESETS.webhook)}
+                className="px-2.5 py-1 rounded border border-[var(--ks-rule)] bg-[var(--ks-paper)] text-[var(--ks-text-muted)] hover:text-[var(--ks-ink)] hover:border-[var(--ks-edge)] transition-colors text-[11px]"
+              >
+                Unverified Webhook
+              </button>
+              <button
+                onClick={() => loadPreset(PRESETS.npmSlop)}
+                className="px-2.5 py-1 rounded border border-[var(--ks-rule)] bg-[var(--ks-paper)] text-[var(--ks-text-muted)] hover:text-[var(--ks-ink)] hover:border-[var(--ks-edge)] transition-colors text-[11px]"
+              >
+                npm Slop
+              </button>
+              <button
+                onClick={() => loadPreset(PRESETS.pypiSlop)}
+                className="px-2.5 py-1 rounded border border-[var(--ks-rule)] bg-[var(--ks-paper)] text-[var(--ks-text-muted)] hover:text-[var(--ks-ink)] hover:border-[var(--ks-edge)] transition-colors text-[11px]"
+              >
+                PyPI Slop
+              </button>
+            </div>
+          </div>
+
+          {/* Action Row */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--ks-rule)] bg-[var(--ks-paper)] text-xs text-[var(--ks-text-muted)]">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePaste}
+                className="flex items-center gap-1 px-2.5 py-1 rounded border border-[var(--ks-edge)] bg-[var(--ks-paper-raised)] text-[var(--ks-text)] hover:text-[var(--ks-ink)] transition-colors"
+              >
+                <Icon name="copy" size={13} />
+                <span>{pasteFeedback ? 'Pasted' : 'Paste'}</span>
+              </button>
+              <button
+                onClick={handleCopy}
+                disabled={!inputCode}
+                className="flex items-center gap-1 px-2.5 py-1 rounded border border-[var(--ks-edge)] bg-[var(--ks-paper-raised)] text-[var(--ks-text)] hover:text-[var(--ks-ink)] transition-colors disabled:opacity-40"
+              >
+                <Icon name={copyFeedback ? 'check' : 'copy'} size={13} className={copyFeedback ? 'text-[var(--ks-patina)]' : ''} />
+                <span>{copyFeedback ? 'Copied' : 'Copy'}</span>
+              </button>
+              <button
+                onClick={handleClear}
+                disabled={!inputCode}
+                className="flex items-center gap-1 px-2.5 py-1 rounded border border-[var(--ks-edge)] bg-[var(--ks-paper-raised)] text-[var(--ks-text-muted)] hover:text-[var(--ks-vermilion)] transition-colors disabled:opacity-40"
+              >
+                <Icon name="trash" size={13} />
+                <span>Clear</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="tabular-nums font-mono text-[11px]">
+                {inputCode ? `${inputCode.split('\n').length} lines` : '0 lines'}
+              </span>
+            </div>
+          </div>
+
+          {/* Code Textarea Area */}
+          <div className="bg-[var(--ks-paper-deep)] p-4">
+            <textarea
+              value={inputCode}
+              onChange={(e) => {
+                setInputCode(e.target.value);
+                setFindings(null);
+              }}
+              rows={11}
+              spellCheck={false}
+              placeholder={
+                activeTab === 'code'
+                  ? '// Paste Next.js or React code snippet to inspect AST boundaries...'
+                  : activeTab === 'npm'
+                  ? '{\n  "dependencies": {\n    "package-name": "^1.0.0"\n  }\n}'
+                  : '# Paste requirements.txt dependencies\nfastapi>=0.111.0'
+              }
+              className="w-full resize-y bg-transparent font-mono text-xs leading-relaxed text-[var(--ks-ink)] placeholder:text-[var(--ks-text-faint)] focus:outline-none"
+            />
+          </div>
+
+          {/* Run Action Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[var(--ks-rule)] bg-[var(--ks-paper-raised)]">
+            <div className="flex items-center gap-2 text-xs text-[var(--ks-text-muted)]">
+              <span>Target engine:</span>
+              <span className="font-mono text-[11px] text-[var(--ks-ink)]">
+                {activeTab === 'code'
+                  ? 'AST Boundary Ruleset'
+                  : activeTab === 'npm'
+                  ? 'registry.npmjs.org'
+                  : 'pypi.org'}
               </span>
             </div>
 
-            <div className="mt-4 space-y-3">
-              {findings.length === 0 ? (
-                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 font-mono text-xs text-emerald-400">
-                  ✔ All components and dependencies verified with zero security findings. Safe for deployment.
-                </div>
-              ) : (
-                findings.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`rounded-lg border p-4 font-mono text-xs text-zinc-200 ${
-                      item.severity === 'CRITICAL'
-                        ? 'border-rose-500/30 bg-rose-950/10'
-                        : 'border-amber-500/30 bg-amber-950/10'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`rounded px-2 py-0.5 font-bold ${
-                            item.severity === 'CRITICAL'
-                              ? 'bg-rose-500/20 text-rose-400'
-                              : 'bg-amber-500/20 text-amber-300'
-                          }`}
-                        >
-                          {item.severity}
-                        </span>
-                        <span className="font-semibold text-zinc-100">[{item.rule}]</span>
-                      </div>
-                      {item.line && <span className="text-zinc-400">Line {item.line}</span>}
-                    </div>
-                    <p className={`mt-2 ${item.severity === 'CRITICAL' ? 'text-rose-200' : 'text-amber-200'}`}>
-                      {item.message}
-                    </p>
-                    <div className="mt-2 rounded border border-zinc-800 bg-zinc-900/60 p-2 text-zinc-300">
-                      <span className="text-zinc-400">Remediation: </span>
-                      {item.remediation}
-                    </div>
-                  </div>
-                ))
-              )}
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={runLiveScan}
+                disabled={isScanning || !inputCode.trim() || cooldownSeconds !== null}
+                className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-semibold transition-colors ${
+                  cooldownSeconds !== null
+                    ? 'border border-[var(--ks-vermilion)]/40 bg-[var(--ks-paper)] text-[var(--ks-text-muted)] cursor-not-allowed'
+                    : 'bg-[var(--ks-ink)] text-[var(--ks-paper-deep)] hover:bg-white disabled:opacity-50'
+                }`}
+              >
+                {isScanning ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-[var(--ks-paper-deep)] border-t-transparent rounded-full animate-spin" />
+                    <span>Verifying...</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="shield" size={14} />
+                    <span>Execute Verification</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
-        )}
+
+          {/* Results Panel */}
+          {findings !== null && (
+            <div className="border-t border-[var(--ks-rule)] bg-[var(--ks-paper)] p-5">
+              {/* Results Status Header */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[var(--ks-rule)]">
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      findings.some((f) => f.severity === 'CRITICAL')
+                        ? 'bg-[var(--ks-vermilion)]'
+                        : findings.some((f) => f.severity === 'WARNING')
+                        ? 'bg-amber-400'
+                        : 'bg-[var(--ks-patina)]'
+                    }`}
+                  />
+                  <span className="text-xs font-semibold text-[var(--ks-ink)] uppercase tracking-wider">
+                    {findings.length === 0
+                      ? 'Clean Pass — 0 Flaws Detected'
+                      : `${findings.length} Security Finding${findings.length > 1 ? 's' : ''}`}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="tabular-nums font-mono text-[11px] text-[var(--ks-text-muted)] mr-2">
+                    Latency: {scanTime ?? 0}ms
+                  </span>
+
+                  {/* Export Actions */}
+                  <button
+                    onClick={handleExportMarkdown}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded border border-[var(--ks-rule)] bg-[var(--ks-paper-raised)] text-[var(--ks-text)] hover:text-[var(--ks-ink)] hover:border-[var(--ks-edge)] transition-colors text-[11px]"
+                    title="Export finding report to Markdown"
+                  >
+                    <Icon name="download" size={12} />
+                    <span>Markdown</span>
+                  </button>
+
+                  <button
+                    onClick={handleExportSarif}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded border border-[var(--ks-rule)] bg-[var(--ks-paper-raised)] text-[var(--ks-text)] hover:text-[var(--ks-ink)] hover:border-[var(--ks-edge)] transition-colors text-[11px]"
+                    title="Export findings in OASIS SARIF v2.1.0 format"
+                  >
+                    <Icon name="code" size={12} />
+                    <span>SARIF</span>
+                  </button>
+
+                  <button
+                    onClick={handleExportConfig}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded border border-[var(--ks-rule)] bg-[var(--ks-paper-raised)] text-[var(--ks-text)] hover:text-[var(--ks-ink)] hover:border-[var(--ks-edge)] transition-colors text-[11px]"
+                    title="Generate .vibeshieldrc.json config"
+                  >
+                    <span>Config</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsCiModalOpen(true)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded border border-[var(--ks-patina)] bg-[var(--ks-patina-pale)] text-[var(--ks-patina)] hover:text-[var(--ks-ink)] transition-colors text-[11px] font-medium"
+                    title="Open GitHub Actions CI setup"
+                  >
+                    <Icon name="terminal" size={12} />
+                    <span>CI Setup</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Finding Cards */}
+              <div className="mt-4 space-y-3">
+                {findings.length === 0 ? (
+                  <div className="rounded border border-[var(--ks-rule)] bg-[var(--ks-paper-raised)] p-4 text-xs text-[var(--ks-text)]">
+                    <div className="flex items-center gap-2 text-[var(--ks-patina)] font-medium mb-1">
+                      <Icon name="check" size={15} />
+                      <span>Zero AST or registry flaws detected.</span>
+                    </div>
+                    <p className="text-[var(--ks-text-muted)]">
+                      All dependency names resolved on official registries with HTTP 200, and no server-side secrets or unsigned payment webhooks were identified.
+                    </p>
+                  </div>
+                ) : (
+                  findings.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded border border-[var(--ks-edge)] bg-[var(--ks-paper-raised)] p-4 text-xs font-mono"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              item.severity === 'CRITICAL'
+                                ? 'bg-[var(--ks-vermilion)]/15 text-[var(--ks-vermilion)]'
+                                : 'bg-amber-400/15 text-amber-300'
+                            }`}
+                          >
+                            {item.severity}
+                          </span>
+                          <span className="font-semibold text-[var(--ks-ink)]">
+                            [{item.rule}]
+                          </span>
+                        </div>
+                        {item.line && (
+                          <span className="tabular-nums text-[var(--ks-text-muted)] text-[11px]">
+                            Line {item.line}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-[var(--ks-text)] mb-3 leading-relaxed">
+                        {item.message}
+                      </p>
+
+                      <div className="rounded border border-[var(--ks-rule)] bg-[var(--ks-paper-deep)] p-2.5 text-[var(--ks-text-muted)]">
+                        <span className="font-semibold text-[var(--ks-ink)] block mb-1">Remediation:</span>
+                        <span>{item.remediation}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* CI Setup Modal */}
+      <CiSnippetModal
+        isOpen={isCiModalOpen}
+        onClose={() => setIsCiModalOpen(false)}
+        defaultEcosystem={activeTab === 'pypi' ? 'pypi' : 'npm'}
+      />
     </section>
   );
 }

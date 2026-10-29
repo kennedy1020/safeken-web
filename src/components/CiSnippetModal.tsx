@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Copy, Check, Terminal, Shield, X, Code2 } from 'lucide-react';
+import { Icon } from '@/components/Icons';
 
 interface CiSnippetModalProps {
   isOpen: boolean;
@@ -22,7 +22,7 @@ export default function CiSnippetModal({
 
   if (!isOpen) return null;
 
-  const yamlContent = `name: VibeShield Security Audit (${ecosystem.toUpperCase()})
+  const yamlContent = `name: SafeKen VibeShield Security Audit (${ecosystem.toUpperCase()})
 
 on:
   push:
@@ -69,7 +69,7 @@ ${
     : ''
 }`;
 
-  const badgeMarkdown = `[![Protected by VibeShield](https://img.shields.io/badge/Security-VibeShield_v1.1.2-059669?style=flat&logo=githubactions&logoColor=white)](https://github.com/kennedy1020/vibe-shield)`;
+  const badgeMarkdown = `[![Protected by VibeShield](https://img.shields.io/badge/Security-SafeKen_VibeShield-0d9488?style=flat&logo=githubactions&logoColor=white)](https://github.com/kennedy1020/vibe-shield)`;
 
   const handleCopyYaml = () => {
     navigator.clipboard.writeText(yamlContent);
@@ -84,117 +84,102 @@ ${
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75">
+      <div className="w-full max-w-2xl rounded-lg border border-[var(--ks-edge)] bg-[var(--ks-paper)] p-6 shadow-2xl relative text-[var(--ks-text)]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
-          <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-emerald-400" />
-            <h3 className="font-bold text-base text-zinc-100">
-              Automate in CI/CD with GitHub Actions
+        <div className="flex items-center justify-between pb-4 border-b border-[var(--ks-rule)]">
+          <div className="flex items-center gap-2.5">
+            <Icon name="shield" size={17} className="text-[var(--ks-patina)]" />
+            <h3 className="text-base font-semibold text-[var(--ks-ink)]">
+              GitHub Actions CI/CD Integration
             </h3>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 text-xs">
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-[var(--ks-paper-deep)] border border-[var(--ks-rule)] rounded p-0.5 text-xs">
               <button
                 onClick={() => setEcosystem('npm')}
-                className={`px-2 py-0.5 rounded transition ${
+                className={`px-2 py-0.5 rounded transition-colors ${
                   ecosystem === 'npm'
-                    ? 'bg-emerald-500/20 text-emerald-300 font-semibold'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-[var(--ks-paper-raised)] text-[var(--ks-ink)] font-semibold'
+                    : 'text-[var(--ks-text-muted)] hover:text-[var(--ks-ink)]'
                 }`}
               >
                 npm
               </button>
               <button
                 onClick={() => setEcosystem('pypi')}
-                className={`px-2 py-0.5 rounded transition ${
+                className={`px-2 py-0.5 rounded transition-colors ${
                   ecosystem === 'pypi'
-                    ? 'bg-emerald-500/20 text-emerald-300 font-semibold'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-[var(--ks-paper-raised)] text-[var(--ks-ink)] font-semibold'
+                    : 'text-[var(--ks-text-muted)] hover:text-[var(--ks-ink)]'
                 }`}
               >
                 PyPI
               </button>
             </div>
+
             <button
               onClick={onClose}
-              className="text-zinc-400 hover:text-white transition p-1 rounded-md"
+              className="text-[var(--ks-text-muted)] hover:text-[var(--ks-ink)] p-1 rounded transition-colors"
+              aria-label="Close dialog"
             >
-              <X className="w-5 h-5" />
+              <Icon name="close" size={16} />
             </button>
           </div>
         </div>
 
         {/* Configuration Toggles */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <label className="flex items-center gap-2 p-3 rounded-lg border border-zinc-800 bg-zinc-900/50 cursor-pointer">
+          <label className="flex items-center gap-2 p-3 rounded border border-[var(--ks-rule)] bg-[var(--ks-paper-raised)] cursor-pointer">
             <input
               type="checkbox"
               checked={enableSarif}
               onChange={(e) => setEnableSarif(e.target.checked)}
-              className="accent-emerald-500 rounded"
+              className="accent-[var(--ks-patina)] rounded"
             />
-            <span className="text-zinc-300">Upload to GitHub Security Tab (SARIF)</span>
+            <span className="text-[var(--ks-ink)]">Upload to GitHub Security Tab (SARIF)</span>
           </label>
 
-          <label className="flex items-center gap-2 p-3 rounded-lg border border-zinc-800 bg-zinc-900/50 cursor-pointer">
+          <label className="flex items-center gap-2 p-3 rounded border border-[var(--ks-rule)] bg-[var(--ks-paper-raised)] cursor-pointer">
             <input
               type="checkbox"
               checked={failOnFindings}
               onChange={(e) => setFailOnFindings(e.target.checked)}
-              className="accent-emerald-500 rounded"
+              className="accent-[var(--ks-patina)] rounded"
             />
-            <span className="text-zinc-300">Fail Pull Request on Critical Flaws</span>
+            <span className="text-[var(--ks-ink)]">Fail PR on Critical Flaws (Exit 1)</span>
           </label>
         </div>
 
         {/* Instructions */}
-        <div className="mt-4 flex items-center justify-between text-xs text-zinc-400">
-          <span className="flex items-center gap-1.5 font-mono">
-            <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-            Save as: <code className="text-zinc-200">.github/workflows/vibe-shield.yml</code>
+        <div className="mt-4 flex items-center justify-between text-xs text-[var(--ks-text-muted)]">
+          <span className="font-mono text-[11px] text-[var(--ks-text)]">
+            File path: <code className="text-[var(--ks-ink)]">.github/workflows/vibe-shield.yml</code>
           </span>
           <button
             onClick={handleCopyYaml}
-            className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium transition"
+            className="flex items-center gap-1.5 px-3 py-1 bg-[var(--ks-ink)] text-[var(--ks-paper-deep)] rounded text-xs font-semibold hover:bg-white transition-colors"
           >
-            {copiedYaml ? (
-              <>
-                <Check className="w-3.5 h-3.5" /> Copied Workflow!
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" /> Copy Workflow YAML
-              </>
-            )}
+            <Icon name={copiedYaml ? 'check' : 'copy'} size={13} />
+            <span>{copiedYaml ? 'Copied Workflow' : 'Copy Workflow YAML'}</span>
           </button>
         </div>
 
         {/* Code Snippet Box */}
-        <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-900 p-3 max-h-56 overflow-y-auto font-mono text-[11px] text-zinc-300">
+        <div className="mt-2 rounded border border-[var(--ks-edge)] bg-[var(--ks-paper-deep)] p-3 max-h-52 overflow-y-auto font-mono text-[11px] text-[var(--ks-text)]">
           <pre className="whitespace-pre-wrap">{yamlContent}</pre>
         </div>
 
         {/* Optional README Badge */}
-        <div className="mt-4 pt-4 border-t border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Code2 className="w-4 h-4 text-zinc-400" />
-            <span className="text-xs text-zinc-400">Add Shield badge to README:</span>
-          </div>
+        <div className="mt-4 pt-4 border-t border-[var(--ks-rule)] flex items-center justify-between text-xs">
+          <span className="text-[var(--ks-text-muted)]">Add verification badge to repository README:</span>
           <button
             onClick={handleCopyBadge}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded border border-zinc-700 transition"
+            className="flex items-center gap-1 px-2.5 py-1 rounded border border-[var(--ks-rule)] bg-[var(--ks-paper-raised)] text-[var(--ks-text)] hover:text-[var(--ks-ink)] hover:border-[var(--ks-edge)] transition-colors text-[11px]"
           >
-            {copiedBadge ? (
-              <>
-                <Check className="w-3 h-3 text-emerald-400" /> Copied Markdown
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" /> Copy Badge Code
-              </>
-            )}
+            <Icon name={copiedBadge ? 'check' : 'copy'} size={12} />
+            <span>{copiedBadge ? 'Copied Badge Markdown' : 'Copy Badge Markdown'}</span>
           </button>
         </div>
       </div>
