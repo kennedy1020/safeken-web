@@ -44,6 +44,11 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 4.5rem;
+}
+
 body {
   background-color: var(--ks-paper-deep);
   color: var(--ks-text);

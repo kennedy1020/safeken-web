@@ -4,6 +4,8 @@ import { Icon } from '@/components/Icons';
 import DeterministicVsAi from '@/components/DeterministicVsAi';
 import TerminalPreview from '@/components/TerminalPreview';
 import LiveScanner from '@/components/LiveScanner';
+import HeroCliBox from '@/components/HeroCliBox';
+import CloudWaitlist from '@/components/CloudWaitlist';
 
 export const metadata: Metadata = {
   title: 'SafeKen VibeShield — Deterministic Security for AI Codebases',
@@ -46,16 +48,21 @@ export default function HomePage() {
           </Link>
 
           {/* Nav Links & GitHub */}
-          <div className="flex items-center gap-5 text-xs font-medium">
-            <nav className="hidden sm:flex items-center gap-5 text-[var(--ks-text-muted)]">
+          <div className="flex items-center gap-3 sm:gap-5 text-xs font-medium">
+            <nav className="flex items-center gap-3 sm:gap-5 text-[var(--ks-text-muted)]">
               <a href="#scanner" className="hover:text-[var(--ks-ink)] transition-colors">
                 Workbench
               </a>
               <a href="#terminal" className="hover:text-[var(--ks-ink)] transition-colors">
-                Terminal Proof
+                <span className="hidden sm:inline">Terminal Proof</span>
+                <span className="sm:hidden">Terminal</span>
               </a>
               <a href="#architecture" className="hover:text-[var(--ks-ink)] transition-colors">
-                Architecture
+                <span className="hidden sm:inline">Architecture</span>
+                <span className="sm:hidden">Engine</span>
+              </a>
+              <a href="#cloud" className="text-[var(--ks-patina)] hover:text-[var(--ks-ink)] transition-colors">
+                Cloud
               </a>
             </nav>
 
@@ -63,10 +70,10 @@ export default function HomePage() {
               href="https://github.com/kennedy1020/vibe-shield"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[var(--ks-edge)] bg-[var(--ks-paper-raised)] text-[var(--ks-ink)] hover:border-[var(--ks-patina)] transition-colors text-xs font-medium"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded border border-[var(--ks-edge)] bg-[var(--ks-paper-raised)] text-[var(--ks-ink)] hover:border-[var(--ks-patina)] transition-colors text-xs font-medium"
             >
               <Icon name="github" size={14} />
-              <span>GitHub</span>
+              <span className="hidden xs:inline">GitHub</span>
             </Link>
           </div>
         </div>
@@ -87,20 +94,7 @@ export default function HomePage() {
               </p>
 
               {/* Quick CLI Execution Box */}
-              <div className="rounded-lg border border-[var(--ks-edge)] bg-[var(--ks-paper)] p-3 sm:p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 font-mono text-xs overflow-x-auto text-[var(--ks-ink)] py-1">
-                  <span className="text-[var(--ks-patina)] font-bold select-none">$</span>
-                  <span className="whitespace-nowrap">npx @kennedy1020/vibe-shield scan .</span>
-                </div>
-
-                <a
-                  href="#scanner"
-                  className="shrink-0 flex items-center justify-center gap-1.5 px-4 py-2 rounded text-xs font-semibold bg-[var(--ks-ink)] text-[var(--ks-paper-deep)] hover:bg-white transition-colors"
-                >
-                  <span>Open Playground</span>
-                  <Icon name="next" size={13} />
-                </a>
-              </div>
+              <HeroCliBox />
 
               {/* Factual Proof Points */}
               <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[var(--ks-rule)] text-xs">
@@ -167,6 +161,9 @@ export default function HomePage() {
 
       {/* Architecture Comparison Section */}
       <DeterministicVsAi />
+
+      {/* SafeKen Cloud Early-Access Waitlist */}
+      <CloudWaitlist />
 
       {/* Footer */}
       <footer className="border-t border-[var(--ks-rule)] bg-[var(--ks-paper-deep)] py-12 text-xs text-[var(--ks-text-muted)]">

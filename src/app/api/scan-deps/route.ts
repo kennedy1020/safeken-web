@@ -225,6 +225,13 @@ export async function POST(req: NextRequest) {
 
     // 5. Merge Cached Hits and Fresh Probes
     const combinedResults = [...hits, ...probedResults];
+    const verifiedPackages = combinedResults
+      .filter((r) => r.exists)
+      .map((v) => ({
+        packageName: v.packageName,
+        versionSpecifier: v.versionSpecifier,
+        cached: v.fromCache ?? false,
+      }));
     const hallucinations = combinedResults.filter((r) => !r.exists && r.statusCode === 404);
     const networkFailures = combinedResults.filter((r) => r.error);
 
@@ -234,6 +241,7 @@ export async function POST(req: NextRequest) {
         totalChecked: combinedResults.length,
         cacheHits: hits.length,
         registryFetches: probedResults.length,
+        verifiedPackages,
         hallucinations: hallucinations.map((h) => ({
           packageName: h.packageName,
           versionSpecifier: h.versionSpecifier,

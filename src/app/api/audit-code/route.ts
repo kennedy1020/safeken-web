@@ -3,9 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 interface AuditFinding {
   ruleId: string;
   severity: 'CRITICAL' | 'HIGH' | 'WARN';
+  line?: number;
   title: string;
   description: string;
   suggestedFix: string;
+}
+
+function findLineNumber(lines: string[], matcher: (line: string) => boolean): number | undefined {
+  const idx = lines.findIndex(matcher);
+  return idx !== -1 ? idx + 1 : undefined;
 }
 
 export async function POST(req: NextRequest) {
@@ -17,6 +23,7 @@ export async function POST(req: NextRequest) {
     }
 
     const findings: AuditFinding[] = [];
+    const lines = code.split('\n');
     const isClientComponent = /['"]use client['"]/.test(code);
 
     // 1. Paystack Webhook without HMAC SHA-512 verification
@@ -32,7 +39,11 @@ export async function POST(req: NextRequest) {
       if (!hasSignatureCheck) {
         findings.push({
           ruleId: 'nextjs-paystack-unsigned-webhook',
-          severity: 'HIGH',
+          severity: 'CRITICAL',
+          line: findLineNumber(
+            lines,
+            (l) => l.includes('charge.success') || l.includes('req.json()') || l.includes('paystack')
+          ),
           title: 'Unverified Paystack Webhook Handler',
           description:
             'Processing payment events without computing an HMAC SHA-512 hash against your secret key allows attackers to spoof charge.success events and steal fulfillment credits.',
@@ -63,6 +74,7 @@ export async function POST(req: Request) {
         findings.push({
           ruleId: 'nextjs-stripe-unsigned-webhook',
           severity: 'HIGH',
+          line: findLineNumber(lines, (l) => l.includes('req.json()') || l.includes('stripe') || l.includes('POST')),
           title: 'Unsigned Stripe Webhook',
           description:
             'Parsing Stripe webhook JSON directly without stripe.webhooks.constructEvent allows unauthorized parties to forge checkout completions.',
@@ -94,14 +106,25 @@ export async function POST(req: Request) {
       isClientComponent &&
       (code.includes('SUPABASE_SERVICE_ROLE_KEY') ||
         code.includes('service_role') ||
-        code.includes('SUPABASE_ADMIN_KEY'))
+        code.includes('SUPABASE_ADMIN_KEY') ||
+        code.includes('STRIPE_SECRET_KEY') ||
+        code.includes('PAYSTACK_SECRET_KEY'))
     ) {
       findings.push({
         ruleId: 'nextjs-supabase-service-role-client',
         severity: 'CRITICAL',
-        title: 'Supabase Service Key in Client Component',
+        line: findLineNumber(
+          lines,
+          (l) =>
+            l.includes('SUPABASE_SERVICE_ROLE_KEY') ||
+            l.includes('service_role') ||
+            l.includes('SUPABASE_ADMIN_KEY') ||
+            l.includes('STRIPE_SECRET_KEY') ||
+            l.includes('PAYSTACK_SECRET_KEY')
+        ),
+        title: 'Server Secret Key in Client Component Boundary',
         description:
-          'Supabase service_role keys bypass Row Level Security (RLS). Importing or using this key in a file with "use client" bakes full database admin privileges directly into the public JavaScript bundle.',
+          'Supabase service_role or private payment keys bypass access controls. Importing or referencing this key in a file with "use client" bakes elevated privileges directly into the public JavaScript bundle.',
         suggestedFix: `'use client';
 import { createBrowserClient } from '@supabase/ssr';
 
@@ -119,10 +142,11 @@ const supabase = createBrowserClient(
       findings.push({
         ruleId: 'nextjs-public-secret-bleed',
         severity: 'CRITICAL',
+        line: findLineNumber(lines, (l) => secretBleedRegex.test(l)),
         title: 'Private Secret Exposed with NEXT_PUBLIC_ Prefix',
         description:
           'Any environment variable prefixed with NEXT_PUBLIC_ is inlined into the client-side JavaScript sent to every visitor browser.',
-        suggestedFix: `// Access private backend credentials exclusively inside Server Components, 
+        suggestedFix: `// Access private backend credentials exclusively inside Server Components,
 // Route Handlers (/app/api), or Server Actions without the NEXT_PUBLIC_ prefix:
 const secretKey = process.env.STRIPE_SECRET_KEY; // Safe on server`,
       });
@@ -134,6 +158,7 @@ const secretKey = process.env.STRIPE_SECRET_KEY; // Safe on server`,
       findings.push({
         ruleId: 'hardcoded-payment-live-secret',
         severity: 'CRITICAL',
+        line: findLineNumber(lines, (l) => liveKeyRegex.test(l)),
         title: 'Hardcoded Production Secret Committed to Code',
         description:
           'A live production payment token was found directly in the code body. Secrets must always be loaded via server-side environment variables.',
@@ -144,7 +169,7 @@ const paymentKey = process.env.PAYMENT_SECRET_KEY;`,
 
     return NextResponse.json({
       findings,
-      scannedLines: code.split('\n').length,
+      scannedLines: lines.length,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Audit failed';

@@ -31,7 +31,7 @@ export function exportToMarkdown(data: {
   const timestamp = new Date().toISOString();
   let md = `# SafeKen VibeShield Security Audit Report\n\n`;
   md += `- **Date:** ${timestamp}\n`;
-  md += `- **Scanner:** @kennedy1020/vibe-shield v1.1.2\n`;
+  md += `- **Scanner:** @kennedy1020/vibe-shield v1.1.3\n`;
   md += `- **Audit Type:** ${data.type === 'manifest' ? `Dependency Slopsquatting (${data.ecosystem?.toUpperCase()})` : 'AST Code Vulnerability Audit'}\n`;
   md += `- **Total Findings:** ${data.findings.length}\n\n`;
   md += `---\n\n`;
@@ -77,7 +77,7 @@ export function exportToSarif(data: {
         tool: {
           driver: {
             name: 'SafeKen VibeShield',
-            version: '1.1.2',
+            version: '1.1.3',
             informationUri: 'https://github.com/kennedy1020/vibe-shield',
             rules: data.findings.map((f) => ({
               id: f.ruleId || 'slopsquatting-missing-package',

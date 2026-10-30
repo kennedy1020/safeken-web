@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '@/components/Icons';
+import { downloadFile } from '@/lib/exportReports';
 
 interface CiSnippetModalProps {
   isOpen: boolean;
@@ -19,6 +20,21 @@ export default function CiSnippetModal({
   const [failOnFindings, setFailOnFindings] = useState(true);
   const [copiedYaml, setCopiedYaml] = useState(false);
   const [copiedBadge, setCopiedBadge] = useState(false);
+
+  useEffect(() => {
+    setEcosystem(defaultEcosystem);
+  }, [defaultEcosystem, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -51,7 +67,7 @@ jobs:
         run: pip install semgrep
 
       - name: Run SafeKen VibeShield
-        uses: kennedy1020/vibe-shield@v1.1.2
+        uses: kennedy1020/vibe-shield@v1.1.3
         with:
           target-dir: '.'
           github-token: \${{ secrets.GITHUB_TOKEN }}
@@ -77,6 +93,10 @@ ${
     setTimeout(() => setCopiedYaml(false), 2000);
   };
 
+  const handleDownloadYaml = () => {
+    downloadFile(yamlContent, 'vibe-shield.yml', 'text/yaml');
+  };
+
   const handleCopyBadge = () => {
     navigator.clipboard.writeText(badgeMarkdown);
     setCopiedBadge(true);
@@ -84,13 +104,22 @@ ${
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75">
-      <div className="w-full max-w-2xl rounded-lg border border-[var(--ks-edge)] bg-[var(--ks-paper)] p-6 shadow-2xl relative text-[var(--ks-text)]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ci-modal-title"
+    >
+      <div
+        className="w-full max-w-2xl rounded-lg border border-[var(--ks-edge)] bg-[var(--ks-paper)] p-6 shadow-2xl relative text-[var(--ks-text)]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[var(--ks-rule)]">
           <div className="flex items-center gap-2.5">
             <Icon name="shield" size={17} className="text-[var(--ks-patina)]" />
-            <h3 className="text-base font-semibold text-[var(--ks-ink)]">
+            <h3 id="ci-modal-title" className="text-base font-semibold text-[var(--ks-ink)]">
               GitHub Actions CI/CD Integration
             </h3>
           </div>
@@ -153,17 +182,26 @@ ${
         </div>
 
         {/* Instructions */}
-        <div className="mt-4 flex items-center justify-between text-xs text-[var(--ks-text-muted)]">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--ks-text-muted)]">
           <span className="font-mono text-[11px] text-[var(--ks-text)]">
             File path: <code className="text-[var(--ks-ink)]">.github/workflows/vibe-shield.yml</code>
           </span>
-          <button
-            onClick={handleCopyYaml}
-            className="flex items-center gap-1.5 px-3 py-1 bg-[var(--ks-ink)] text-[var(--ks-paper-deep)] rounded text-xs font-semibold hover:bg-white transition-colors"
-          >
-            <Icon name={copiedYaml ? 'check' : 'copy'} size={13} />
-            <span>{copiedYaml ? 'Copied Workflow' : 'Copy Workflow YAML'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadYaml}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--ks-edge)] bg-[var(--ks-paper-raised)] text-[var(--ks-text)] hover:text-[var(--ks-ink)] transition-colors text-xs"
+            >
+              <Icon name="download" size={13} />
+              <span>Download .yml</span>
+            </button>
+            <button
+              onClick={handleCopyYaml}
+              className="flex items-center gap-1.5 px-3 py-1 bg-[var(--ks-ink)] text-[var(--ks-paper-deep)] rounded text-xs font-semibold hover:bg-white transition-colors"
+            >
+              <Icon name={copiedYaml ? 'check' : 'copy'} size={13} />
+              <span>{copiedYaml ? 'Copied Workflow' : 'Copy Workflow YAML'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Code Snippet Box */}

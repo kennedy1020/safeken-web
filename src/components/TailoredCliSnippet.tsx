@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Terminal, Copy, Check } from 'lucide-react';
+import { Icon } from '@/components/Icons';
 
 interface TailoredCliSnippetProps {
   type: 'manifest' | 'code';
@@ -25,7 +25,7 @@ export default function TailoredCliSnippet({
 
   // Build the dynamic terminal command
   const buildCommand = (): string => {
-    const parts = ['npx @kennedy1020/vibe-shield@1.1.2 scan .'];
+    const parts = ['npx @kennedy1020/vibe-shield@1.1.3 scan .'];
 
     if (type === 'manifest') {
       if (ecosystem === 'pypi') {
@@ -53,64 +53,57 @@ export default function TailoredCliSnippet({
   };
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 space-y-3">
+    <div className="rounded border border-[var(--ks-edge)] bg-[var(--ks-paper-deep)] p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
-          <Terminal className="w-4 h-4 text-emerald-400" />
-          <span>Reproduce in Local Terminal:</span>
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--ks-ink)]">
+          <Icon name="terminal" size={14} className="text-[var(--ks-patina)]" />
+          <span>Reproduce in Local Terminal</span>
         </div>
 
         {/* Options to tune flags */}
-        <div className="flex items-center gap-4 text-[11px] text-zinc-400">
+        <div className="flex flex-wrap items-center gap-4 text-[11px] text-[var(--ks-text-muted)]">
           {detectedRules.length > 0 && type === 'code' && (
-            <label className="flex items-center gap-1.5 cursor-pointer hover:text-zinc-200">
+            <label className="flex items-center gap-1.5 cursor-pointer hover:text-[var(--ks-ink)]">
               <input
                 type="checkbox"
                 checked={isolatedRules}
                 onChange={(e) => setIsolatedRules(e.target.checked)}
-                className="accent-emerald-500 rounded"
+                className="accent-[var(--ks-patina)] rounded"
               />
-              Target flagged rules only ({detectedRules.length})
+              <span>Target flagged rules only ({detectedRules.length})</span>
             </label>
           )}
 
-          <label className="flex items-center gap-1.5 cursor-pointer hover:text-zinc-200">
+          <label className="flex items-center gap-1.5 cursor-pointer hover:text-[var(--ks-ink)]">
             <input
               type="checkbox"
               checked={includeSarif}
               onChange={(e) => setIncludeSarif(e.target.checked)}
-              className="accent-emerald-500 rounded"
+              className="accent-[var(--ks-patina)] rounded"
             />
-            Export SARIF file
+            <span>Export SARIF file</span>
           </label>
         </div>
       </div>
 
       {/* Terminal Block */}
-      <div className="flex items-center justify-between gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 font-mono text-xs">
-        <div className="flex items-center gap-2 overflow-x-auto text-emerald-300 whitespace-nowrap scrollbar-none">
-          <span className="text-zinc-500 select-none">$</span>
+      <div className="flex items-center justify-between gap-3 bg-[var(--ks-paper)] border border-[var(--ks-rule)] rounded p-2.5 font-mono text-xs">
+        <div className="flex items-center gap-2 overflow-x-auto text-[var(--ks-ink)] whitespace-nowrap">
+          <span className="text-[var(--ks-patina)] font-bold select-none">$</span>
           <span>{command}</span>
         </div>
 
         <button
           onClick={handleCopy}
-          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded text-xs font-medium transition"
+          className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 bg-[var(--ks-paper-raised)] border border-[var(--ks-edge)] hover:border-[var(--ks-patina)] text-[var(--ks-text)] hover:text-[var(--ks-ink)] rounded text-xs font-medium transition-colors"
         >
-          {copied ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-emerald-400" /> Copied!
-            </>
-          ) : (
-            <>
-              <Copy className="w-3.5 h-3.5" /> Copy
-            </>
-          )}
+          <Icon name={copied ? 'check' : 'copy'} size={13} className={copied ? 'text-[var(--ks-patina)]' : ''} />
+          <span>{copied ? 'Copied' : 'Copy'}</span>
         </button>
       </div>
 
-      <p className="text-[11px] text-zinc-500">
-        Run this command inside your project root to run the identical checks locally before pushing.
+      <p className="text-[11px] text-[var(--ks-text-muted)]">
+        Run this command inside your project root to execute the identical deterministic checks locally before pushing.
       </p>
     </div>
   );
